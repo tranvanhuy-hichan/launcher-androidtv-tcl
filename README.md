@@ -21,18 +21,15 @@ Không phân tích, không quảng cáo, không theo dõi.
 
 ## Giao diện
 
-- **Thanh trên cùng:** lời chào theo giờ, giờ lớn và ngày; bên phải là ô *Tìm ứng dụng*, nút Wi‑Fi, nút **Điều khiển**
-  và tên TV. Bấm Wi‑Fi hoặc Điều khiển để mở Trung tâm điều khiển.
-- **Đã ghim:** bốn ô ngang 2×2 hiện **banner của chính ứng dụng** (YouTube, VTVgo, Play Store...); ứng dụng không có
-  banner dùng icon trên nền màu. Ô còn trống là *Thêm ứng dụng*. Nút *Tất cả ứng dụng ›* ở góc phải mở toàn bộ
+- **Bố cục thoáng:** nửa trên màn hình để trống: lời chào, giờ cỡ lớn và ngày trên nền hình nền; góc phải trên có ô tìm kiếm,
+  nút Wi‑Fi, nút **Điều khiển** (bấm để mở Trung tâm điều khiển), tên và logo của bạn. Mọi thứ khác nằm ở nửa dưới.
+- **Đã ghim:** một hàng tối đa 6 ô ngang hiện **banner của chính ứng dụng** (YouTube, VTVgo, Play Store...); ứng dụng
+  không có banner dùng icon trên nền màu. Ô còn trống là *Thêm*. Nút *Tất cả ứng dụng ›* ở góc phải mở toàn bộ
   ứng dụng có **tìm kiếm khi gõ**. Giữ OK trên ứng dụng để ghim, bỏ ghim, xem thông tin hoặc gỡ cài đặt.
 - **Ô thông tin (kính mờ, bật/tắt từng cái):**
-  - **Ngày:** ngày dương, thứ, và **âm lịch**.
+  - **Ngày:** ngày dương, thứ, **âm lịch**, và ngày lễ hoặc sự kiện riêng (sinh nhật, giỗ) gần nhất trong 60 ngày.
   - **Thời tiết:** nhiệt độ, tình trạng và dự báo theo giờ. Bấm để xem chi tiết.
-  - **Wi‑Fi:** tốc độ, tên mạng, vòng RAM và bộ nhớ.
-  - **Bộ nhớ:** dung lượng trống và thanh đã dùng.
-  - **Sắp tới:** ngày lễ hoặc sự kiện riêng gần nhất trong 60 ngày.
-  - **Dùng gần đây:** các ứng dụng vừa mở, kèm thời gian.
+  - **Wi‑Fi:** tốc độ **tải xuống thực tế** (kèm tốc độ liên kết tối đa, ví dụ `36 /144 Mbps`), tên mạng, vòng RAM và bộ nhớ.
   - **Mã QR** để kết nối điện thoại bất cứ lúc nào.
 - **Nút ở đáy màn hình:** cạnh hướng dẫn phím có ba nút sát phải: *Tắt tiếng*, *Nguồn vào* (HDMI...) và *Nguồn*
   (tắt màn hình TV, có hỏi xác nhận).

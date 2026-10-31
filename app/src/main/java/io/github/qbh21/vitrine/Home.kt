@@ -383,52 +383,32 @@ private fun MacHome(
     val now = rememberNow(refresh)
     val mem = LocalMemory.current
     val pinned = remember(apps, dock) { dock.mapNotNull { p -> apps.firstOrNull { it.pkg == p } } }
-    val recent = remember(refresh, apps) { Apps.recents(context).mapNotNull { (p, t) -> apps.firstOrNull { it.pkg == p }?.let { it to t } } }
 
     val moved = remember { mutableStateOf(false) }   // set once the user presses a key, so we stop claiming focus
     Box(Modifier.fillMaxSize().onPreviewKeyEvent { moved.value = true; false }) {
         Column(Modifier.fillMaxSize()) {
             MenuBar(now, sys, onAll, onControl)
-            Row(Modifier.padding(start = 38.dp, end = 38.dp).fillMaxWidth().height(30.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Header("Đã ghim", Modifier.padding(start = 4.dp), color = Text)
-                BarPill("dock-all", onAll) { c -> BasicText("Tất cả ứng dụng  ›", style = text(11f, color = c)) }
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.padding(start = 38.dp, end = 38.dp, bottom = 46.dp).fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                // Left: pinned apps (one large, four small), then date and storage.
-                Column(Modifier.weight(1f).fillMaxHeight()) {
-                    Column(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        for (r in 0..1) Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            for (c in 0..1) {
-                                val i = r * 2 + c
-                                val app = pinned.getOrNull(i)
-                                if (app != null) AppTile(app, Modifier.weight(1f).fillMaxHeight().appear(i), "dock$i", onOpen, onMenu)
-                                else if (i == pinned.size) AddTile(Modifier.weight(1f).fillMaxHeight().appear(i), onAll)
-                                else Box(Modifier.weight(1f))
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Row(Modifier.fillMaxWidth().height(88.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if ("time" in widgets) DateTile(now, Modifier.weight(1.6f).fillMaxHeight().appear(5), onCalendar)
-                        StorageTile(sys, Modifier.weight(1f).fillMaxHeight().appear(6), onControl)
+            Spacer(Modifier.weight(1f))   // the upper half stays clear: only the clock and the wallpaper
+            Column(Modifier.padding(start = 38.dp, end = 38.dp, bottom = 46.dp)) {
+                Row(Modifier.fillMaxWidth().height(30.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Header("Đã ghim", Modifier.padding(start = 4.dp), color = Text)
+                    BarPill("dock-all", onAll) { c -> BasicText("Tất cả ứng dụng  ›", style = text(11f, color = c)) }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth().height(78.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    for (i in 0..5) {
+                        val app = pinned.getOrNull(i)
+                        if (app != null) AppTile(app, Modifier.weight(1f).fillMaxHeight().appear(i), "dock$i", onOpen, onMenu)
+                        else if (i == pinned.size) AddTile(Modifier.weight(1f).fillMaxHeight().appear(i), onAll)
+                        else Box(Modifier.weight(1f))
                     }
                 }
-                // Right: weather, system and the next occasion, then recent apps and the phone QR code.
-                Column(Modifier.weight(1f).fillMaxHeight()) {
-                    if ("weather" in widgets) {
-                        WeatherWidget(weather, Modifier.fillMaxWidth().weight(1f).appear(2), onWeather)
-                        Spacer(Modifier.height(12.dp))
-                    }
-                    Row(Modifier.fillMaxWidth().height(92.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if ("system" in widgets) SystemWidget(sys, Modifier.weight(1.5f).fillMaxHeight().appear(4), onControl)
-                        EventTile(now, events, Modifier.weight(1f).fillMaxHeight().appear(5), onCalendar)
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Row(Modifier.fillMaxWidth().height(104.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        RecentStrip(recent, now, Modifier.weight(1f).fillMaxHeight().appear(6), onOpen, onMenu)
-                        if (qrUrl != null) QrCorner(qrUrl, Modifier.fillMaxHeight().appear(7))
-                    }
+                Spacer(Modifier.height(14.dp))
+                Row(Modifier.fillMaxWidth().height(112.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if ("time" in widgets) DateTile(now, events, Modifier.weight(1.3f).fillMaxHeight().appear(6), onCalendar)
+                    if ("weather" in widgets) WeatherWidget(weather, Modifier.weight(1.7f).fillMaxHeight().appear(7), onWeather)
+                    if ("system" in widgets) SystemWidget(sys, Modifier.weight(1.3f).fillMaxHeight().appear(8), onControl)
+                    if (qrUrl != null) QrCorner(qrUrl, Modifier.fillMaxHeight().appear(9))
                 }
             }
         }
@@ -457,19 +437,19 @@ private fun MacHome(
 private fun MenuBar(now: Long, s: SysState, onSearch: () -> Unit, onControl: () -> Unit) {
     val hour = Calendar.getInstance().apply { timeInMillis = now }.get(Calendar.HOUR_OF_DAY)
     val greeting = when (hour) { in 5..10 -> "Chào buổi sáng"; in 11..12 -> "Chào buổi trưa"; in 13..17 -> "Chào buổi chiều"; else -> "Chào buổi tối" }
-    Row(Modifier.fillMaxWidth().height(86.dp).padding(start = 38.dp, end = 38.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().height(160.dp).padding(start = 38.dp, end = 38.dp, top = 14.dp), verticalAlignment = Alignment.Top) {
         Column {
-            BasicText(greeting, style = text(11f, color = Muted))
+            BasicText(greeting, style = text(19f, color = Muted))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                BasicText(format("HH:mm", now), style = text(40f, FontWeight.Light))
-                Column(Modifier.padding(start = 14.dp), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    BasicText(format("EEEE", now), style = text(15f, FontWeight.SemiBold))
-                    BasicText(format("d MMMM", now), style = text(15f, color = Muted))
+                BasicText(format("HH:mm", now), style = text(88f, FontWeight.Light))
+                Column(Modifier.padding(start = 20.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    BasicText(format("EEEE", now), style = text(28f, FontWeight.SemiBold))
+                    BasicText(format("d MMMM", now), style = text(26f, color = Muted))
                 }
             }
         }
         Spacer(Modifier.weight(1f))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             BarPill("mb-search", onSearch, 200.dp) { c ->
                 Image(painterResource(R.drawable.pk_search), null, Modifier.size(13.dp), colorFilter = ColorFilter.tint(c))
                 BasicText("Tìm ứng dụng", style = text(11f, color = c))
@@ -482,12 +462,10 @@ private fun MenuBar(now: Long, s: SysState, onSearch: () -> Unit, onControl: () 
                 BasicText("Điều khiển", style = text(11f, color = c))
             }
             Column(Modifier.padding(start = 6.dp), horizontalAlignment = Alignment.End) {
-                BasicText("Launcher TCL", style = text(11f, FontWeight.SemiBold))
+                BasicText("Hichan TCL", style = text(12f, FontWeight.SemiBold))
                 BasicText("Android TV", style = text(9f, color = Muted))
             }
-            Box(Modifier.size(28.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFF7A6BFF), Color(0xFF5A8CFF)))), contentAlignment = Alignment.Center) {
-                Image(painterResource(R.drawable.pk_tv), null, Modifier.size(14.dp), colorFilter = ColorFilter.tint(Color.White))
-            }
+            Image(painterResource(R.drawable.hichan_logo), "hichan", Modifier.size(34.dp))
         }
     }
 }
@@ -545,8 +523,8 @@ private fun Widget(modifier: Modifier, onClick: () -> Unit, gradient: Pair<Color
 }
 
 @Composable
-private fun Header(title: String, modifier: Modifier = Modifier, color: Color = Muted) {
-    BasicText(title, modifier, style = text(12f, FontWeight.SemiBold, color))
+private fun Header(title: String, modifier: Modifier = Modifier, color: Color = Muted, maxLines: Int = Int.MAX_VALUE) {
+    BasicText(title, modifier, style = text(12f, FontWeight.SemiBold, color), maxLines = maxLines, overflow = TextOverflow.Ellipsis)
 }
 
 @Composable
@@ -647,8 +625,9 @@ private fun SystemWidget(s: SysState, modifier: Modifier, onClick: () -> Unit) {
                     Header("WI‑FI", Modifier.padding(start = 4.dp))
                 }
                 Row(verticalAlignment = Alignment.Bottom) {
-                    BasicText(if (s.linkMbps >= 0) "${animatedValue(s.linkMbps).toInt()}" else "–", style = text(34f, FontWeight.Light))
-                    BasicText("Mbps", Modifier.padding(start = 3.dp, bottom = 6.dp), style = text(12f, color = Muted))
+                    val down = animatedValue(s.down, 400)
+                    BasicText(if (s.linkMbps < 0) "–" else if (down < 10f) "%.1f".format(down) else "${down.toInt()}", style = text(32f, FontWeight.Light))
+                    BasicText(if (s.linkMbps >= 0) "/${s.linkMbps.toInt()} Mbps" else "Mbps", Modifier.padding(start = 3.dp, bottom = 5.dp), style = text(11f, color = Muted), maxLines = 1, softWrap = false)
                 }
                 BasicText(s.ssid ?: "${s.rssi.toInt()} dBm", style = text(12f, color = Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
@@ -664,9 +643,9 @@ private fun SystemWidget(s: SysState, modifier: Modifier, onClick: () -> Unit) {
 private fun Ring(target: Float, color: Color, label: String) {
     val pct = animatedValue(target, 900)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(50.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
-                val st = 5.dp.toPx()
+                val st = 4.5.dp.toPx()
                 val d = size.minDimension - st
                 drawArc(Color(0x24FFFFFF), -90f, 360f, false, Offset(st / 2, st / 2), Size(d, d), style = Stroke(st))
                 drawArc(color, -90f, 360f * pct.coerceIn(0f, 100f) / 100f, false, Offset(st / 2, st / 2), Size(d, d), style = Stroke(st, cap = StrokeCap.Round))
@@ -718,15 +697,22 @@ private fun WeatherIcon(kind: Int, iconSize: Dp) {
 @Composable
 private fun AppTile(app: AppEntry, modifier: Modifier, id: String, onOpen: (AppEntry) -> Unit, onMenu: (AppEntry) -> Unit) {
     val context = LocalContext.current
+    val glyph = Overrides.glyphs[app.pkg]
     val banner = remember(app.pkg) { app.banner(context, 400, 225) }
     val glow = glowFor(app.pkg)
-    Widget(modifier, { onOpen(app) }, if (banner == null) glow.copy(alpha = 0.55f) to Color(0xFF141828) else null, id, { onMenu(app) }) {
+    val background = if (banner != null) null else if (glyph != null) Color(0xFF6B7385) to Color(0xFF2E3444) else glow.copy(alpha = 0.55f) to Color(0xFF141828)
+    Widget(modifier, { onOpen(app) }, background, id, { onMenu(app) }) {
         if (banner != null) {
             Image(banner, app.label, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        } else if (glyph != null) {
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Image(painterResource(glyph), app.label, Modifier.size(36.dp), colorFilter = ColorFilter.tint(Text))
+                BasicText(app.label, Modifier.padding(top = 5.dp), style = text(11f, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         } else {
-            Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Image(rememberAppDockBitmap(app), app.label, Modifier.size(64.dp))
-                BasicText(app.label, style = text(13f, FontWeight.SemiBold), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Row(Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Image(rememberAppDockBitmap(app), app.label, Modifier.size(40.dp))
+                BasicText(app.label, style = text(11f, FontWeight.SemiBold), maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -737,18 +723,19 @@ private fun AppTile(app: AppEntry, modifier: Modifier, id: String, onOpen: (AppE
 private fun AddTile(modifier: Modifier, onClick: () -> Unit) {
     Widget(modifier, onClick, focusId = "dock-add") {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Image(rememberMoreBitmap(), null, Modifier.size(56.dp))
-            BasicText("Thêm ứng dụng", Modifier.padding(top = 7.dp), style = text(11f, color = Muted), maxLines = 1)
+            Image(rememberMoreBitmap(), null, Modifier.size(30.dp))
+            BasicText("Thêm", Modifier.padding(top = 4.dp), style = text(10.5f, color = Muted), maxLines = 1)
         }
     }
 }
 
 /** Day of the month, weekday and lunar date. OK opens the month view. */
 @Composable
-private fun DateTile(now: Long, modifier: Modifier, onClick: () -> Unit) {
+private fun DateTile(now: Long, events: List<Event>, modifier: Modifier, onClick: () -> Unit) {
     val dayKey = format("yyyyMMdd", now)
     val today = remember(dayKey) { Calendar.getInstance().apply { timeInMillis = now } }
     val lunar = remember(dayKey) { Lunar.convert(today.get(Calendar.DAY_OF_MONTH), today.get(Calendar.MONTH) + 1, today.get(Calendar.YEAR)) }
+    val holiday = remember(dayKey, events) { Holidays.upcoming(now, events) }
     Widget(modifier, onClick, focusId = "w-time") {
         Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             BasicText("${today.get(Calendar.DAY_OF_MONTH)}", style = text(44f, FontWeight.Light))
@@ -756,89 +743,14 @@ private fun DateTile(now: Long, modifier: Modifier, onClick: () -> Unit) {
                 Header(format("EEEE", now).uppercase(), color = Color(0xFFFF6259))
                 BasicText("Tháng ${today.get(Calendar.MONTH) + 1}, ${today.get(Calendar.YEAR)}", style = text(11f, color = Muted), maxLines = 1)
                 BasicText("Âm lịch ${lunar.day}/${lunar.month}${if (lunar.leap) " (nhuận)" else ""} · ${Lunar.yearName(lunar.year)}", style = text(11.5f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
-    }
-}
-
-/** Free storage with a thin bar. OK opens the control centre. */
-@Composable
-private fun StorageTile(s: SysState, modifier: Modifier, onClick: () -> Unit) {
-    Widget(modifier, onClick, focusId = "w-rom") {
-        Column(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            Header("BỘ NHỚ")
-            Column {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    BasicText("%.1f".format(animatedValue(s.storageFreeGb)), style = text(28f, FontWeight.Light))
-                    BasicText("GB trống", Modifier.padding(start = 4.dp, bottom = 5.dp), style = text(11f, color = Muted), maxLines = 1)
-                }
-                Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x24FFFFFF))) {
-                    Box(Modifier.fillMaxWidth(animatedValue(s.storageUsedPct, 900).coerceIn(0f, 100f) / 100f).fillMaxHeight().background(Color(0xFF30D158)))
+                holiday?.let { (ahead, name, mine) ->
+                    BasicText(
+                        if (ahead == 0) "Hôm nay · $name" else if (ahead == 1) "Ngày mai · $name" else "$name · còn $ahead ngày",
+                        style = text(11f, FontWeight.SemiBold, if (mine) Color(0xFF6FD6FF) else Color(0xFFFFB340)), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }
-    }
-}
-
-/** The next occasion: today's, a holiday or one of the user's own events. OK opens the month view. */
-@Composable
-private fun EventTile(now: Long, events: List<Event>, modifier: Modifier, onClick: () -> Unit) {
-    val dayKey = format("yyyyMMdd", now)
-    val next = remember(dayKey, events) { Holidays.upcoming(now, events) }
-    Widget(modifier, onClick, focusId = "w-event") {
-        Column(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            Header("SẮP TỚI")
-            if (next == null) BasicText("Không có sự kiện", style = text(11.5f, color = Muted))
-            else {
-                val (ahead, name, mine) = next
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    BasicText(name, style = text(12.5f, FontWeight.SemiBold, if (mine) Color(0xFF6FD6FF) else Color(0xFFFFB340)), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    BasicText(if (ahead == 0) "Hôm nay" else if (ahead == 1) "Ngày mai" else "Còn $ahead ngày", style = text(11f, color = Muted), maxLines = 1)
-                }
-            }
-        }
-    }
-}
-
-/** "Dùng gần đây": the last apps opened from the launcher. */
-@Composable
-private fun RecentStrip(recent: List<Pair<AppEntry, Long>>, now: Long, modifier: Modifier, onOpen: (AppEntry) -> Unit, onMenu: (AppEntry) -> Unit) {
-    val a = LocalPanelAlpha.current
-    val shape = RoundedCornerShape(24.dp)
-    Column(
-        modifier.clip(shape).background(Brush.verticalGradient(listOf(Color(0xFF7F95E8).copy(alpha = a * 0.5f), Color(0xFF1B2030).copy(alpha = a * 0.95f))))
-            .border(0.7.dp, PanelLine, shape).padding(horizontal = 12.dp, vertical = 9.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Header("DÙNG GẦN ĐÂY")
-        if (recent.isEmpty()) BasicText("Chưa có ứng dụng nào", style = text(11f, color = Muted))
-        Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            recent.take(3).forEachIndexed { i, (app, at) ->
-                Pressable(Modifier.weight(1f).fillMaxHeight(), { onOpen(app) }, { onMenu(app) }, focusId = "recent$i") { f ->
-                    Row(
-                        Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)).background(if (f) Color(0x40FFFFFF) else Color(0x1AFFFFFF))
-                            .border(if (f) 2.dp else 0.dp, if (f) Color.White else Color.Transparent, RoundedCornerShape(14.dp)).padding(horizontal = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Image(rememberAppDockBitmap(app), app.label, Modifier.size(28.dp))
-                        Column {
-                            BasicText(app.label, style = text(10f, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            BasicText(ago(now, at), style = text(9f, color = Muted), maxLines = 1)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun ago(now: Long, at: Long): String {
-    val m = ((now - at) / 60_000).coerceAtLeast(0)
-    return when {
-        m < 1 -> "Vừa xong"
-        m < 60 -> "$m phút trước"
-        m < 24 * 60 -> "${m / 60} giờ trước"
-        else -> "${m / (24 * 60)} ngày trước"
     }
 }
 
