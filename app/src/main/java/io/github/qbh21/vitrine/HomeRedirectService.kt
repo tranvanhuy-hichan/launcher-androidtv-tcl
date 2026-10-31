@@ -2,8 +2,12 @@ package io.github.qbh21.vitrine
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 
 /**
  * Makes Vitrine the home screen without disabling the stock launcher.
@@ -46,7 +50,64 @@ class HomeRedirectService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
-    private companion object {
+    // ---- Typing from the phone and Back/Home from anywhere (used by the phone server) ----
+
+    /** Depth-first search for an editable node that has focus. (`findFocus` misses some fields, e.g. in Compose.) */
+    private fun findEditable(n: AccessibilityNodeInfo?, depth: Int = 0): AccessibilityNodeInfo? {
+        if (n == null || depth > 40) return null
+        if (n.isEditable && (n.isFocused || n.isAccessibilityFocused)) return n
+        for (i in 0 until n.childCount) findEditable(n.getChild(i), depth + 1)?.let { return it }
+        return null
+    }
+
+    /** The text field that has input focus in any app window, if there is one. */
+    private fun inputNode(): AccessibilityNodeInfo? {
+        findEditable(rootInActiveWindow)?.let { return it }
+        for (w in windows) findEditable(w.root)?.let { return it }
+        return null
+    }
+
+    /** (is a text field focused, what it currently says). */
+    fun focusedField(): Pair<Boolean, String> {
+        val node = inputNode() ?: return false to ""
+        return true to if (node.isShowingHintText) "" else (node.text?.toString() ?: "")
+    }
+
+    fun setText(text: String): Boolean {
+        val node = inputNode() ?: return false
+        val args = Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text) }
+        return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+    }
+
+    fun pressEnter(): Boolean = inputNode()?.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id) ?: false
+
+    fun goBack() = performGlobalAction(GLOBAL_ACTION_BACK)
+    fun goHome() = performGlobalAction(GLOBAL_ACTION_HOME)
+
+    override fun onUnbind(intent: Intent?): Boolean {
+        instance = null
+        return super.onUnbind(intent)
+    }
+
+    /** The service connects right after the TV boots; show our home screen instead of whatever starts first. */
+    override fun onServiceConnected() {
+        instance = this
+        if (SystemClock.elapsedRealtime() > 3 * 60_000L) return   // enabled later on, not a boot
+        val handler = Handler(Looper.getMainLooper())
+        for (delay in longArrayOf(0L, 8_000L)) handler.postDelayed({ showHome() }, delay)
+    }
+
+    private fun showHome() {
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+            .setClassName(packageName, MainActivity::class.java.name)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+        try { startActivity(home) } catch (e: Exception) { /* leave the stock launcher alone */ }
+    }
+
+    companion object {
+        /** The running service, so the phone server (same process) can use it. */
+        @Volatile var instance: HomeRedirectService? = null
+
         const val STOCK_LAUNCHER = "com.google.android.tvlauncher"
         const val QUICK_RETURN_MS = 3_000L
         const val MAX_QUICK_RETURNS = 3

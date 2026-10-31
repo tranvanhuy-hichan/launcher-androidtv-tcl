@@ -1,8 +1,8 @@
-<!-- Only receives window changes from the stock launcher; can't read what's on screen. -->
+<!-- Receives window changes from every app (it ignores all but the stock launcher's) and may read the focused input field, so text typed on the phone can be put into it. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:canRetrieveWindowContent="false"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
     android:description="@string/home_redirect_description"
-    android:notificationTimeout="0"
-    android:packageNames="com.google.android.tvlauncher" />
+    android:notificationTimeout="0" />

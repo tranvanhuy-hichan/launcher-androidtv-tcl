@@ -24,6 +24,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         asHome = intent.hasCategory(Intent.CATEGORY_HOME)
         setContent { LauncherScreen(refresh, reset, asHome, resumed, onExit = ::finish) }
+        // Keeps the phone connection alive while other apps are open.
+        runCatching { startForegroundService(Intent(this, KeepAliveService::class.java)) }
     }
 
     override fun onPause() {

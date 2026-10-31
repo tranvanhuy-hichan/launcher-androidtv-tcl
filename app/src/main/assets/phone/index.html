@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<title>Launcher TCL</title>
+<style>
+:root{
+  --bg:#f2f2f7;--cell:#fff;--sep:rgba(60,60,67,.16);--lab:#000;--sec:rgba(60,60,67,.62);--ter:rgba(60,60,67,.3);--fill:rgba(120,120,128,.14);
+  --acc:#007aff;--green:#34c759;--red:#ff3b30;--orange:#ff9500;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#000;--cell:#1c1c1e;--sep:rgba(84,84,88,.6);--lab:#fff;--sec:rgba(235,235,245,.6);--ter:rgba(235,235,245,.3);--fill:rgba(120,120,128,.32);--acc:#0a84ff;--green:#30d158;--red:#ff453a;--orange:#ff9f0a}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--lab);font:17px/1.35 var(--font);min-height:100dvh}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+svg{fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* tab bar */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--cell) 86%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--sep)}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;color:var(--sec);font-size:10.5px;font-weight:500}
+nav button svg{width:26px;height:26px;stroke-width:1.7}
+nav button[aria-current="page"]{color:var(--acc)}
+
+main{max-width:600px;margin:0 auto;padding:0 16px calc(96px + env(safe-area-inset-bottom))}
+.head{padding:max(14px,env(safe-area-inset-top)) 4px 4px}
+h1{font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-.022em;margin:14px 0 4px}
+.status{display:flex;align-items:center;gap:7px;color:var(--sec);font-size:14px;margin:0 0 6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--red);flex:none}
+.dot.on{background:var(--green)}.dot.warn{background:var(--orange)}
+.banner{background:var(--cell);border-radius:12px;padding:12px 16px;margin:8px 0;font-size:15px;color:var(--lab);border-left:4px solid var(--red)}
+section[hidden]{display:none}
+.hd{font-size:13px;text-transform:uppercase;color:var(--sec);margin:26px 16px 7px}
+.foot{font-size:13px;line-height:1.4;color:var(--sec);margin:7px 16px 0}
+.group{background:var(--cell);border-radius:12px;overflow:hidden}
+.row{position:relative;display:flex;align-items:center;gap:12px;min-height:46px;padding:9px 16px;width:100%;text-align:left}
+.row+.row::before{content:"";position:absolute;top:0;right:0;left:16px;height:.5px;background:var(--sep)}
+.row.ic+.row.ic::before{left:58px}
+.row .ico{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;color:#fff;flex:none}
+.row .ico svg{width:18px;height:18px;stroke-width:2}
+.row .t{flex:1;min-width:84px}
+.row .t b{display:block;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .t small{display:block;color:var(--sec);font-size:13px;margin-top:1px}
+.row .v{color:var(--sec);white-space:nowrap}
+.row .chev{width:14px;height:14px;color:var(--ter);flex:none;stroke-width:2.4}
+button.row:active{background:var(--fill)}
+.link{color:var(--acc);font-weight:500}
+.link.bad{color:var(--red)}
+.link[disabled]{color:var(--ter)}
+.icobtn{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--acc);flex:none}
+.icobtn:active{background:var(--fill)}
+.icobtn[disabled]{color:var(--ter)}
+.icobtn.bad{color:var(--red)}
+.icobtn svg{width:19px;height:19px}
+.meter{height:5px;border-radius:3px;background:var(--fill);overflow:hidden;margin-top:7px}
+.meter i{display:block;height:100%;border-radius:3px;background:var(--acc);transition:width .4s}
+.meter i.hi{background:var(--orange)}
+input[type=text]{flex:1;min-width:0;background:none;border:0;outline:0;font-size:17px;padding:2px 0}
+input[type=text]::placeholder{color:var(--ter)}
+select{background:none;border:0;outline:0;color:var(--acc);font-size:17px;max-width:52%;min-width:0;text-align:right;text-align-last:right;direction:rtl;padding:4px 0}
+select option{direction:ltr;color:#000}
+input[type=range]{width:100%;accent-color:var(--acc);height:30px;margin:0}
+.slider{padding:8px 16px 10px}
+.slider .l{display:flex;justify-content:space-between;color:var(--sec);font-size:13px;margin-bottom:2px}
+
+/* iOS-style switch */
+.switch{position:relative;width:51px;height:31px;flex:none}
+.switch input{position:absolute;inset:0;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.switch span{position:absolute;inset:0;border-radius:99px;background:var(--fill);transition:background .2s}
+.switch span::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.25);transition:transform .2s}
+.switch input:checked+span{background:var(--green)}
+.switch input:checked+span::after{transform:translateX(20px)}
+.switch input:focus-visible+span{outline:2px solid var(--acc);outline-offset:2px}
+
+/* remote */
+.dpad{position:relative;width:272px;height:272px;border-radius:50%;background:var(--cell);margin:14px auto 22px;box-shadow:0 0 0 .5px var(--sep)}
+.dp{position:absolute;display:grid;place-items:center;color:var(--lab);touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;border-radius:50%}
+.dp svg{width:30px;height:30px;stroke-width:2.2}
+.dp:active{background:var(--fill)}
+.dp.up{top:8px;left:84px;width:104px;height:78px;border-radius:52px 52px 14px 14px}
+.dp.down{bottom:8px;left:84px;width:104px;height:78px;border-radius:14px 14px 52px 52px}
+.dp.left{left:8px;top:84px;width:78px;height:104px;border-radius:52px 14px 14px 52px}
+.dp.right{right:8px;top:84px;width:78px;height:104px;border-radius:14px 52px 52px 14px}
+.dp.ok{left:86px;top:86px;width:100px;height:100px;background:var(--bg);font-weight:600;font-size:17px;box-shadow:0 0 0 .5px var(--sep)}
+.dp.ok:active{background:var(--fill)}
+.actions{display:flex;justify-content:center;gap:30px;margin-bottom:22px}
+.act{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--lab);font-size:12px;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.act i{width:58px;height:58px;border-radius:50%;background:var(--cell);display:grid;place-items:center;box-shadow:0 0 0 .5px var(--sep)}
+.act:active i{background:var(--fill)}
+.act svg{width:24px;height:24px}
+.stepper{display:flex;background:var(--cell);border-radius:14px;overflow:hidden;box-shadow:0 0 0 .5px var(--sep);margin:0 auto 4px;max-width:300px}
+.stepper button{flex:1;height:52px;display:grid;place-items:center;color:var(--lab);touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.stepper button+button{border-left:.5px solid var(--sep)}
+.stepper button:active{background:var(--fill)}
+.stepper svg{width:24px;height:24px}
+
+/* wallpapers */
+.hscroll{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;margin:0 -16px;padding:4px 16px 8px;scrollbar-width:none}
+.hscroll::-webkit-scrollbar{display:none}
+.wall{position:relative;flex:none;width:150px;scroll-snap-align:start;border-radius:11px;padding:0;line-height:0;overflow:hidden;box-shadow:0 0 0 .5px var(--sep)}
+.wall img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+.wall[aria-pressed="true"]{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--acc)}
+.wall[aria-pressed="true"]::after{content:"";position:absolute;right:7px;top:7px;width:22px;height:22px;border-radius:50%;background:var(--acc) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E") center/13px no-repeat}
+.preview{display:none;width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin:6px 0}
+.apps-ico{width:36px;height:36px;border-radius:8px;object-fit:cover;background:var(--fill);flex:none}
+.big{font-size:44px;font-weight:300;letter-spacing:-.02em;font-variant-numeric:tabular-nums;text-align:center;padding:10px 0 2px}
+.pair{display:flex;gap:8px;padding:0 16px 14px}
+.pair button{flex:1;height:44px;border-radius:10px;background:var(--fill);font-weight:500}
+.pair button:active{background:var(--ter)}
+.pair button.pri{background:var(--acc);color:#fff}
+#toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translate(-50%,16px);opacity:0;background:rgba(40,40,44,.94);color:#fff;padding:11px 18px;border-radius:14px;font-size:15px;transition:opacity .2s,transform .2s;pointer-events:none;z-index:30;max-width:calc(100vw - 32px);text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media (min-width:820px){
+  body{display:grid;grid-template-columns:240px 1fr}
+  nav{position:sticky;top:0;height:100dvh;flex-direction:column;justify-content:flex-start;gap:2px;padding:28px 12px;border-top:0;border-right:.5px solid var(--sep)}
+  nav button{flex:none;flex-direction:row;gap:12px;padding:10px 12px;font-size:16px;border-radius:10px;justify-content:flex-start}
+  nav button[aria-current="page"]{background:var(--fill)}
+  nav button svg{width:22px;height:22px}
+  main{padding-bottom:48px;width:100%}
+  #toast{bottom:28px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<nav id="nav" aria-label="Mục chính"></nav>
+<main>
+  <header class="head"><h1 id="ttl">Điều khiển</h1><p class="status"><span id="dot" class="dot"></span><span id="sub">Đang kết nối…</span></p></header>
+  <div id="banner" class="banner" hidden>Mất kết nối với TV. Trang sẽ tự kết nối lại khi TV sẵn sàng. Nếu không được, trên TV mở mục <b>Điện thoại</b> rồi quét lại mã QR.</div>
+  <section id="t-ctl"></section>
+  <section id="t-apps" hidden></section>
+  <section id="t-look" hidden></section>
+  <section id="t-sys" hidden></section>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+const K=new URLSearchParams(location.search).get('k');
+const $=s=>document.querySelector(s), enc=encodeURIComponent;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const I={ // 24px line icons
+ wifi:'<path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/>',
+ cpu:'<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>',
+ disk:'<path d="M22 12H2M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11zM6 16h.01M10 16h.01"/>',
+ home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM9 22V12h6v10"/>',
+ up:'<path d="M18 15l-6-6-6 6"/>',down:'<path d="M6 9l6 6 6-6"/>',left:'<path d="M15 18l-6-6 6-6"/>',right:'<path d="M9 18l6-6-6-6"/>',
+ back:'<path d="M19 12H5M12 19l-7-7 7-7"/>',menu:'<path d="M3 12h18M3 6h18M3 18h18"/>',
+ vup:'<path d="M11 5L6 9H2v6h4l5 4zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>',
+ vdn:'<path d="M11 5L6 9H2v6h4l5 4zM15.54 8.46a5 5 0 0 1 0 7.07"/>',
+ mute:'<path d="M11 5L6 9H2v6h4l5 4zM23 9l-6 6M17 9l6 6"/>',
+ moon:'<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+ gift:'<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v9H5v-9M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>',
+ clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+ cloud:'<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>',
+ image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+ grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+ search:'<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>',
+ kbd:'<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
+ play:'<path d="M5 3l14 9-14 9z"/>',
+ tv:'<rect x="2" y="7" width="20" height="15" rx="2"/><path d="M17 2l-5 5-5-5"/>',
+ phone:'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>',
+ lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+ zap:'<path d="M13 2L3 14h9l-1 8 10-12h-9z"/>',
+ drop:'<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>',
+ layers:'<path d="M12 2L2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>',
+ pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+ trash:'<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ note:'<path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>',
+ yt:'<path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/><path d="M9.75 15.02l5.75-3.27-5.75-3.27z"/>',
+ chev:'<path d="M9 18l6-6-6-6"/>',
+ qr:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v.01M14 21h.01M21 18v3h-3"/>'
+};
+const sv=(n,c='')=>`<svg class="${c}" viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`;
+const COL={blue:'#007aff',green:'#34c759',orange:'#ff9500',red:'#ff3b30',purple:'#af52de',teal:'#30b0c7',gray:'#8e8e93',indigo:'#5856d6',pink:'#ff2d55'};
+const ico=(n,c)=>`<span class="ico" style="background:${COL[c]}">${sv(n)}</span>`;
+const TABS=[
+ {id:'ctl',label:'Điều khiển',icon:'<rect x="7" y="2" width="10" height="20" rx="4"/><circle cx="12" cy="8" r="2"/><path d="M10 14h4M10 18h4"/>'},
+ {id:'apps',label:'Ứng dụng',icon:I.grid},
+ {id:'look',label:'Giao diện',icon:I.image},
+ {id:'sys',label:'Hệ thống',icon:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'}
+];
+let thumbV=Date.now(), S=null, tab=(location.hash||'#ctl').slice(1), fails=0, lastHint=0;
+
+async function api(path,opt){
+  const r=await fetch(path+(path.includes('?')?'&':'?')+'k='+K,opt);
+  if(!r.ok) throw new Error(r.status);
+  return r;
+}
+const get=p=>api(p).then(r=>r.json());
+const post=(p,b)=>api(p,{method:'POST',body:b}).then(r=>r.text());
+let tt;
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),2600)}
+function online(on){$('#dot').className='dot'+(on?' on':'');$('#banner').hidden=on;if(!on)$('#sub').textContent='Mất kết nối'}
+
+function nav(){
+  $('#nav').innerHTML=TABS.map(t=>`<button data-tab="${t.id}" ${t.id===tab?'aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true">${t.icon}</svg>${t.label}</button>`).join('');
+  TABS.forEach(t=>$('#t-'+t.id).hidden=t.id!==tab);
+  $('#ttl').textContent=TABS.find(t=>t.id===tab).label;
+}
+const pct=(a,b)=>Math.max(0,Math.min(100,Math.round(a/b*100)));
+const group=(rows,foot='',title='')=>`${title?`<h2 class="hd">${title}</h2>`:''}<div class="group">${rows.join('')}</div>${foot?`<p class="foot">${foot}</p>`:''}`;
+const switchRow=(id,icon,color,title,sub,on)=>`<div class="row ic">${ico(icon,color)}<div class="t"><b>${title}</b>${sub?`<small>${sub}</small>`:''}</div><label class="switch"><input type="checkbox" data-sw="${id}" ${on?'checked':''} aria-label="${title}"><span></span></label></div>`;
+const navRow=(act,icon,color,title,sub,extra='')=>`<button class="row ic" data-act="${act}" ${extra}>${ico(icon,color)}<div class="t"><b>${title}</b>${sub?`<small>${sub}</small>`:''}</div>${sv('chev','chev')}</button>`;
+
+/* ---------- Điều khiển ---------- */
+function ctl(){
+  const dp=(c,l,cls)=>`<button class="dp ${cls}" data-key="${c}" aria-label="${l}">${cls==='ok'?'OK':sv(c)}</button>`;
+  const act=(c,l,i)=>`<button class="act" data-key="${c}" aria-label="${l}"><i>${sv(i)}</i>${l}</button>`;
+  $('#t-ctl').innerHTML=`
+  <div class="dpad">${dp('up','Lên','up')}${dp('left','Trái','left')}${dp('ok','OK','ok')}${dp('right','Phải','right')}${dp('down','Xuống','down')}</div>
+  <div class="actions">${act('back','Quay lại','back')}${act('home','Màn hình chính','home')}${act('menu','Menu','menu')}</div>
+  <div class="stepper"><button data-key="voldown" aria-label="Giảm âm lượng">${sv('vdn')}</button><button data-key="mute" aria-label="Tắt tiếng">${sv('mute')}</button><button data-key="volup" aria-label="Tăng âm lượng">${sv('vup')}</button></div>
+  <p class="foot" style="text-align:center">Mũi tên và OK điều khiển launcher. Quay lại, Màn hình chính và âm lượng dùng được ở mọi app.</p>
+  ${group([`<div class="row ic">${ico('yt','red')}<input type="text" id="yq" placeholder="Tìm trên YouTube" autocomplete="off" enterkeyhint="search" aria-label="Tìm trên YouTube"><button class="link" data-act="ytsearch">Tìm</button></div>`],'TV mở ngay kết quả trong YouTube, kể cả khi đang xem app khác.','YouTube')}
+  ${group([`<div class="row ic">${ico('kbd','blue')}<input type="text" id="kb" placeholder="Gõ để nhập vào TV" autocomplete="off" autocapitalize="off" autocorrect="off" enterkeyhint="send" aria-label="Bàn phím nhập vào TV"></div>`,
+     `<div class="row"><div class="t"><b id="kbpill">Đang kiểm tra…</b></div><button class="link" data-act="kbclear">Xóa</button><button class="link" data-act="enter" style="margin-left:6px">Gửi</button></div>`],
+     'Chọn một ô nhập trên TV rồi gõ ở đây. Dùng được với ô nhập thông thường (Cài đặt, mật khẩu Wi‑Fi, trình duyệt). YouTube tự vẽ bàn phím riêng nên hãy dùng ô tìm YouTube ở trên.','Bàn phím')}
+  <h2 class="hd">Âm lượng</h2><div class="group"><div class="slider"><div class="l"><span>Nhỏ</span><span id="volv">${Math.round(S.volume*100/S.volumeMax)}%</span></div>
+   <input id="vol" type="range" min="0" max="${S.volumeMax}" value="${S.volume}" aria-label="Âm lượng"></div></div>`;
+  $('#vol').oninput=e=>{$('#volv').textContent=Math.round(e.target.value*100/S.volumeMax)+'%';clearTimeout(ctl.t);ctl.t=setTimeout(()=>post('/api/volume?v='+e.target.value).catch(()=>toast('Không đổi được âm lượng')),150)};
+  kbPoll();
+}
+let kbT, composing=false;
+async function sendText(){
+  try{await api('/api/type',{method:'POST',body:$('#kb').value})}
+  catch(e){toast(e.message==='409'?'Chưa có ô nhập nào được chọn trên TV':'Không gửi được')}
+}
+document.addEventListener('compositionstart',e=>{if(e.target.id==='kb')composing=true});
+document.addEventListener('compositionend',e=>{if(e.target.id==='kb'){composing=false;sendText()}});
+document.addEventListener('input',e=>{if(e.target.id==='kb'&&!composing){clearTimeout(kbT);kbT=setTimeout(sendText,120)}});
+document.addEventListener('keydown',e=>{
+  if(e.target.id==='yq'&&e.key==='Enter'){e.preventDefault();document.querySelector('[data-act=ytsearch]').click()}
+  else if(e.target.id==='kb'&&e.key==='Enter'){e.preventDefault();api('/api/enter',{method:'POST'}).catch(()=>toast('Chưa có ô nhập nào được chọn trên TV'))}
+});
+async function kbPoll(){
+  const pill=$('#kbpill'); if(!pill||tab!=='ctl')return;
+  try{
+    const j=await get('/api/typestate');
+    pill.textContent=!j.svc?'Chưa bật dịch vụ trợ năng':(j.focused?'Đã chọn ô nhập trên TV':'Chưa chọn ô nhập trên TV');
+    pill.style.color=j.focused?'var(--green)':'var(--sec)';
+    const kb=$('#kb'); if(j.focused&&kb&&document.activeElement!==kb&&kb.value!==j.text)kb.value=j.text;
+  }catch(e){}
+}
+
+/* ---------- Ứng dụng ---------- */
+const appOptions=l=>l.map(a=>`<option value="${esc(a.pkg)}">${esc(a.label)}</option>`).join('');
+function dockRows(){
+  const by=Object.fromEntries(S.apps.map(a=>[a.pkg,a]));
+  const items=S.dock.filter(p=>by[p]);
+  if(!items.length)return [`<div class="row"><div class="t"><b style="color:var(--sec)">Dock đang trống</b></div></div>`];
+  return items.map((p,i)=>`<div class="row"><img class="apps-ico" src="/icon?pkg=${enc(p)}&k=${K}" alt="" loading="lazy" onerror="this.removeAttribute('src')"><div class="t"><b>${esc(by[p].label)}</b></div>
+   <button class="icobtn" data-act="up" data-pkg="${esc(p)}" aria-label="Lên" ${i===0?'disabled':''}>${sv('up')}</button><button class="icobtn" data-act="down" data-pkg="${esc(p)}" aria-label="Xuống" ${i===items.length-1?'disabled':''}>${sv('down')}</button><button class="icobtn bad" data-act="del" data-pkg="${esc(p)}" aria-label="Bỏ khỏi Dock">${sv('trash')}</button></div>`);
+}
+function apps(){
+  const notIn=S.apps.filter(a=>!S.dock.includes(a.pkg));
+  $('#t-apps').innerHTML=
+  group([`<div class="row ic">${ico('play','green')}<div class="t"><b>Mở trên TV</b></div><select id="launchsel" aria-label="Chọn ứng dụng">${appOptions(S.apps)}</select></div>`,
+         `<button class="row" data-act="launchsel"><div class="t"><b class="link">Mở ứng dụng đã chọn</b></div></button>`],'','Mở ứng dụng')+
+  group(dockRows(),'Dùng mũi tên để đổi thứ tự.','Trong Dock')+
+  group([`<div class="row ic">${ico('plus','blue')}<div class="t"><b>Thêm vào Dock</b></div><select id="addsel" aria-label="Chọn ứng dụng">${appOptions(notIn)||'<option value="">Đã thêm hết</option>'}</select></div>`,
+         `<button class="row" data-act="addsel"><div class="t"><b class="link">Thêm ứng dụng đã chọn</b></div></button>`]);
+}
+async function saveDock(msg){
+  try{await post('/api/dock',JSON.stringify(S.dock)); if(msg)toast(msg); apps()}
+  catch(e){toast('Không lưu được Dock')}
+}
+
+/* ---------- Giao diện ---------- */
+function eventRows(){
+  if(!S.events.length)return [`<div class="row"><div class="t"><b style="color:var(--sec)">Chưa có sự kiện nào</b></div></div>`];
+  return S.events.map(e=>`<div class="row ic">${ico(e.lunar?'moon':'gift',e.lunar?'indigo':'pink')}<div class="t"><b>${esc(e.name)}</b><small>${e.lunar?'Âm lịch':'Dương lịch'} ${e.day}/${e.month} · hằng năm</small></div><button class="icobtn bad" data-act="evdel" data-id="${esc(e.id)}" aria-label="Xóa ${esc(e.name)}">${sv('trash')}</button></div>`);
+}
+function look(){
+  const photo=S.wall==='Photo', inList=S.cities.some(c=>c[0]===S.city);
+  $('#t-look').innerHTML=
+  `<h2 class="hd" style="margin-top:6px">Hình nền</h2>
+   <div class="hscroll">${S.walls.map(w=>`<button class="wall" aria-pressed="${S.wall===w.name}" aria-label="${esc(w.label)}" data-act="wall" data-name="${w.name}"><img src="/thumb?name=${w.name}&k=${K}&t=${thumbV}" alt="${esc(w.label)}" loading="lazy"></button>`).join('')}</div>`+
+  group([`<div class="row ic">${ico('image','indigo')}<div class="t"><b>Ảnh từ điện thoại</b></div><label class="link" for="f" style="cursor:pointer">Chọn ảnh</label><input type="file" id="f" accept="image/*" hidden></div>`,
+         `<div class="row" style="flex-direction:column;align-items:stretch"><img id="pv" class="preview" alt="Xem trước"><button class="link" data-act="upload" id="upbtn" disabled style="text-align:left;padding:6px 0">Dùng ảnh này</button></div>`],'Chọn ảnh ngang. Ảnh được thu nhỏ trên điện thoại trước khi gửi.')+
+  (photo?group([`<div class="slider"><div class="l"><span>Độ tối của ảnh</span><span id="dimv">${S.dim}%</span></div><input id="dim" type="range" min="0" max="80" step="5" value="${S.dim}" aria-label="Độ tối của ảnh nền"></div>`]):'')+
+  group([switchRow('time','clock','blue','Giờ và lịch','Đồng hồ, dương lịch, âm lịch, ngày lễ',S.widgets.time),
+         switchRow('weather','cloud','teal','Thời tiết','Nhiệt độ và dự báo theo giờ',S.widgets.weather),
+         switchRow('system','cpu','orange','Hệ thống','Tốc độ Wi‑Fi, RAM, bộ nhớ',S.widgets.system)],'','Widget')+
+  group([`<div class="slider"><div class="l"><span>Độ trong suốt</span><span id="panelv">${100-S.panelAlpha}%</span></div><input id="panel" type="range" min="0" max="90" step="5" value="${100-S.panelAlpha}" aria-label="Độ trong suốt của widget"></div>`],'0% là đục hoàn toàn, càng cao càng nhìn xuyên thấy hình nền.')+
+  group(eventRows(),'Lặp lại hằng năm. Hiện trong widget lịch và lịch tháng trên TV.','Sự kiện của bạn')+
+  group([`<div class="row ic">${ico('note','pink')}<input type="text" id="evname" placeholder="Tên (vd: Sinh nhật Mai, Giỗ ông nội)" maxlength="40" autocomplete="off" aria-label="Tên sự kiện"></div>`,
+         `<div class="row"><div class="t"><b>Loại lịch</b></div><select id="evcal" aria-label="Loại lịch"><option value="solar">Dương lịch</option><option value="lunar">Âm lịch</option></select></div>`,
+         `<div class="row"><div class="t"><b>Ngày</b></div><select id="evday" aria-label="Ngày">${Array.from({length:31},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}</select></div>`,
+         `<div class="row"><div class="t"><b>Tháng</b></div><select id="evmonth" aria-label="Tháng">${Array.from({length:12},(_,i)=>`<option value="${i+1}">Tháng ${i+1}</option>`).join('')}</select></div>`,
+         `<button class="row" data-act="evadd"><div class="t"><b class="link">Thêm sự kiện</b></div></button>`],'Ngày giỗ nên chọn Âm lịch, sinh nhật thường chọn Dương lịch.','Thêm sự kiện')+
+  group([`<div class="row ic">${ico('pin','red')}<div class="t"><b>Thành phố</b></div><select id="city" aria-label="Thành phố">${inList?'':`<option selected value="custom">${esc(S.city)}</option>`}${S.cities.map((c,i)=>`<option value="${i}" ${c[0]===S.city?'selected':''}>${esc(c[0])}</option>`).join('')}</select></div>`,
+         `<div class="row ic">${ico('search','gray')}<input type="text" id="q" placeholder="Tìm thành phố khác" enterkeyhint="search" autocomplete="off" aria-label="Tìm thành phố"><button class="link" data-act="search">Tìm</button></div>`,
+         `<div class="row" id="resRow" hidden><div class="t" id="res"></div></div>`],'','Thời tiết')+
+  group([switchRow('sfx','note','pink','Tiếng khi thao tác','Âm thanh hệ thống khi di chuyển và chọn',S.sfx)],'','Âm thanh');
+  $('#f').onchange=e=>{const f=e.target.files[0];$('#upbtn').disabled=!f;const p=$('#pv');if(f){p.src=URL.createObjectURL(f);p.style.display='block'}else p.style.display='none'};
+  const d=$('#dim'); if(d) d.oninput=e=>{$('#dimv').textContent=e.target.value+'%';clearTimeout(look.t);look.t=setTimeout(()=>{S.dim=+e.target.value;post('/api/dim?v='+e.target.value).catch(()=>toast('Không đổi được độ tối'))},200)};
+  $('#panel').oninput=e=>{const t=+e.target.value;$('#panelv').textContent=t+'%';clearTimeout(look.p);look.p=setTimeout(()=>{S.panelAlpha=100-t;post('/api/panel?v='+(100-t)).catch(()=>toast('Không đổi được độ trong suốt'))},150)};
+  $('#q').onkeydown=e=>{if(e.key==='Enter')searchCity()};
+}
+async function searchCity(){
+  const q=$('#q').value.trim(), res=$('#res'); if(!q)return;
+  $('#resRow').hidden=false; res.textContent='Đang tìm…';
+  try{
+    const j=await (await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+enc(q)+'&count=8&language=vi&countryCode=VN')).json();
+    const rs=j.results||[];
+    res.innerHTML=rs.length?`<select id="resSel" style="max-width:100%;direction:ltr;text-align:left;text-align-last:left;width:100%"><option value="">Chọn kết quả (${rs.length})</option>${rs.map(x=>`<option value='${esc(JSON.stringify([x.name,x.latitude,x.longitude]))}'>${esc(x.name)}${x.admin1?', '+esc(x.admin1):''}</option>`).join('')}</select>`:'Không tìm thấy.';
+  }catch(e){res.textContent='Không tìm được. Kiểm tra kết nối mạng của điện thoại.'}
+}
+async function pickCity(name,la,lo){
+  try{await post(`/api/city?name=${enc(name)}&lat=${la}&lon=${lo}`);S.city=name;toast('Đã đổi thành phố: '+name);look()}catch(e){toast('Không đổi được thành phố')}
+}
+async function upload(){
+  const f=$('#f').files[0]; if(!f)return;
+  try{
+    toast('Đang gửi ảnh…');
+    const img=await createImageBitmap(f), c=document.createElement('canvas'); c.width=960;c.height=540;
+    const s=Math.max(960/img.width,540/img.height), w=img.width*s, h=img.height*s;
+    c.getContext('2d').drawImage(img,(960-w)/2,(540-h)/2,w,h);
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.85));
+    await post('/api/upload',blob); thumbV=Date.now(); S=await get('/api/state'); toast('Đã đổi hình nền'); look();
+  }catch(e){toast('Không gửi được ảnh')}
+}
+
+/* ---------- Hệ thống ---------- */
+function statRows(){
+  const ram=pct(S.ram.totalMb-S.ram.freeMb,S.ram.totalMb), disk=pct(S.storage.totalGb-S.storage.freeGb,S.storage.totalGb);
+  const m=p=>`<div class="meter"><i class="${p>85?'hi':''}" style="width:${p}%"></i></div>`;
+  return [
+   `<div class="row ic">${ico('cpu','blue')}<div class="t"><b>RAM</b>${m(ram)}<small>Còn trống ${Math.round(S.ram.freeMb)} MB</small></div><span class="v">${ram}%</span></div>`,
+   `<div class="row ic">${ico('disk','orange')}<div class="t"><b>Bộ nhớ</b>${m(disk)}<small>Còn trống ${S.storage.freeGb.toFixed(1)} GB</small></div><span class="v">${disk}%</span></div>`,
+   `<div class="row ic">${ico('wifi','green')}<div class="t"><b>Wi‑Fi</b><small>${esc(S.wifi.ssid||'Không rõ tên mạng')}${S.wifi.link>=0?' · '+S.wifi.rssi+' dBm':''}</small></div><span class="v">${S.wifi.link>=0?S.wifi.link+' Mbps':'–'}</span></div>`];
+}
+function sys(){
+  $('#t-sys').innerHTML=
+  `<div id="stats">${group(statRows(),'','Tình trạng TV')}</div>`+
+  group([`<button class="row ic" data-act="clean">${ico('zap','orange')}<div class="t"><b>Dọn RAM</b><small id="cleanres">Đóng các app đang chạy nền để TV mượt hơn</small></div>${sv('chev','chev')}</button>`,
+         `<button class="row ic" data-act="home">${ico('home','blue')}<div class="t"><b>Về màn hình chính</b><small>Đưa TV về Launcher TCL</small></div>${sv('chev','chev')}</button>`],'','Thao tác')+
+  group([switchRow('qr','qr','indigo','Mã QR trên màn hình','Luôn hiện mã nhỏ ở góc để quét nhanh',S.widgets.qr),
+         `<button class="row ic" data-act="rotate">${ico('lock','red')}<div class="t"><b>Đổi mã bảo mật</b><small>Ngắt mọi điện thoại đã quét trước đó</small></div>${sv('chev','chev')}</button>`],'Trang này giữ kết nối với TV kể cả khi bạn mở YouTube hay VTVGo.','Kết nối điện thoại')+
+  group([`<div class="row ic">${ico('tv','gray')}<div class="t"><b>${esc(S.tv)}</b><small>${esc(S.ip)}</small></div></div>`],'','Thiết bị');
+}
+
+function paint(){nav();({ctl,apps,look,sys})[tab]()}
+function setTab(t){tab=t;history.replaceState(null,'','?k='+K+'#'+t);paint();scrollTo(0,0)}
+
+/* ---------- remote keys: hold to repeat ---------- */
+let rep;
+function sendKey(c){
+  api('/api/key?c='+c,{method:'POST'}).catch(e=>{
+    if(e.message==='409'&&Date.now()-lastHint>4000){lastHint=Date.now();toast('Đang ở ngoài launcher: dùng app Google TV cho phím mũi tên')}
+  });
+  if(navigator.vibrate)navigator.vibrate(8);
+}
+document.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-key]');if(!b)return;e.preventDefault();const c=b.dataset.key;sendKey(c);clearTimeout(rep);clearInterval(rep);if(['up','down','left','right','volup','voldown'].includes(c))rep=setTimeout(()=>{rep=setInterval(()=>sendKey(c),140)},380)});
+['pointerup','pointercancel','pointerleave'].forEach(t=>document.addEventListener(t,()=>{clearTimeout(rep);clearInterval(rep)}));
+
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('[data-tab]'); if(t){setTab(t.dataset.tab);return}
+  const b=e.target.closest('[data-act]'); if(!b||b.disabled)return;
+  const d=b.dataset;
+  try{
+    if(d.act==='search')searchCity();
+    else if(d.act==='wall'){await post('/api/wall?name='+d.name);S.wall=d.name;toast('Đã đổi hình nền');look()}
+    else if(d.act==='upload')upload();
+    else if(d.act==='addsel'){const p=$('#addsel').value;if(p&&!S.dock.includes(p)){S.dock.push(p);saveDock('Đã thêm vào Dock')}}
+    else if(d.act==='del'){S.dock=S.dock.filter(p=>p!==d.pkg);saveDock('Đã bỏ khỏi Dock')}
+    else if(d.act==='up'||d.act==='down'){const i=S.dock.indexOf(d.pkg),j=i+(d.act==='up'?-1:1);if(i>=0&&j>=0&&j<S.dock.length){[S.dock[i],S.dock[j]]=[S.dock[j],S.dock[i]];saveDock()}}
+    else if(d.act==='launchsel'){await post('/api/launch?pkg='+enc($('#launchsel').value));toast('Đã mở trên TV')}
+    else if(d.act==='evadd'){const name=$('#evname').value.trim();if(!name)return toast('Nhập tên sự kiện trước');
+      await post(`/api/event?name=${enc(name)}&cal=${$('#evcal').value}&day=${$('#evday').value}&month=${$('#evmonth').value}`);
+      S=await get('/api/state');toast('Đã thêm sự kiện');look()}
+    else if(d.act==='evdel'){await post('/api/eventdel?id='+enc(d.id));S=await get('/api/state');toast('Đã xóa sự kiện');look()}
+    else if(d.act==='rotate'){await post('/api/rotate');toast('Đã đổi mã. Quét lại mã QR trên TV.');online(false)}
+    else if(d.act==='home'){await post('/api/key?c=home');toast('TV đã về màn hình chính')}
+    else if(d.act==='ytsearch'){const q=$('#yq').value.trim();if(!q)return toast('Gõ từ khóa trước');await post('/api/ytsearch?q='+enc(q));toast('Đang mở YouTube…')}
+    else if(d.act==='enter'){await post('/api/enter');toast('Đã gửi Enter')}
+    else if(d.act==='kbclear'){$('#kb').value='';sendText()}
+    else if(d.act==='clean'){$('#cleanres').textContent='Đang dọn…';const n=+(await post('/api/clean'));$('#cleanres').textContent=n>0?`Đã giải phóng ${n} MB`:'Không còn gì để dọn thêm';refresh()}
+  }catch(err){
+    if(d.act==='enter')toast('Chưa có ô nhập nào được chọn trên TV'); else toast('Không thực hiện được. Kiểm tra kết nối với TV.')
+  }
+});
+document.addEventListener('change',async e=>{
+  if(e.target.id==='city'){const v=e.target.value;if(v!=='custom'){const c=S.cities[+v];pickCity(c[0],c[1],c[2])}return}
+  if(e.target.id==='resSel'){if(e.target.value){const c=JSON.parse(e.target.value);pickCity(c[0],c[1],c[2])}return}
+  const id=e.target.dataset&&e.target.dataset.sw; if(!id)return;
+  const on=e.target.checked;
+  try{
+    if(id==='sfx'){await post('/api/sfx?on='+(on?1:0));S.sfx=on}
+    else{await post(`/api/widget?id=${id}&on=${on?1:0}`);S.widgets[id]=on}
+    toast('Đã lưu');
+  }catch(err){e.target.checked=!on;toast('Không lưu được')}
+});
+
+/* ---------- stay connected: poll, and recover by itself after the TV restarts ---------- */
+async function refresh(){
+  try{
+    const n=await get('/api/state'); const was=fails>=2; fails=0; online(true);
+    if(!S||was){S=n;paint()}
+    else{S.ram=n.ram;S.storage=n.storage;S.wifi=n.wifi;S.volume=n.volume; if(tab==='sys'&&!document.activeElement.matches('input,select')){const s=$('#stats');if(s)s.innerHTML=group(statRows(),'','Tình trạng TV')}}
+    $('#sub').textContent='Đã kết nối · '+n.tv+' · '+n.ip;
+  }catch(e){if(++fails>=2)online(false)}
+}
+window.addEventListener('hashchange',()=>{const t=location.hash.slice(1);if(TABS.some(x=>x.id===t)&&t!==tab)setTab(t)});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
+if(!TABS.some(t=>t.id===tab))tab='ctl';
+refresh(); setInterval(refresh,3000); setInterval(kbPoll,1500);
+</script>
+</body>
+</html>

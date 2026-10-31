@@ -66,16 +66,13 @@ object Apps {
      * Apps pinned to Start, in order. The first six fill the layout's app slots (the first gets the big
      * tile); any more go in an extra column on the right. Long-press options pin and unpin.
      */
-    private val DEFAULT_PINNED = listOf(
-        "com.google.android.youtube.tv", "org.moonfin.androidtv", "com.android.vending",
-        "com.mediatek.wwtv.tvcenter", "com.mediatek.dmp.mediaplayer", "com.android.documentsui",
-    )
+    private val DEFAULT_PINNED = listOf("com.google.android.youtube.tv", "vn.vtv.vtvgotv", "com.android.vending", "com.android.tv.settings")
 
     fun pinned(context: Context): List<String> =
-        prefs(context).getString("pinned3", null)?.split(',')?.filter { it.isNotBlank() } ?: DEFAULT_PINNED
+        prefs(context).getString("dock2", null)?.split(',')?.filter { it.isNotBlank() } ?: DEFAULT_PINNED
 
     fun savePinned(context: Context, pinned: List<String>) =
-        prefs(context).edit().putString("pinned3", pinned.joinToString(",")).apply()
+        prefs(context).edit().putString("dock2", pinned.joinToString(",")).apply()
 
     /** The last few apps opened from the launcher, newest first, as (package, time). Kept on the TV only. */
     fun recents(context: Context): List<Pair<String, Long>> =
@@ -99,6 +96,19 @@ object Apps {
 
     fun saveBackdrop(context: Context, name: String) = prefs(context).edit().putString("backdrop2", name).apply()
 
+    /** Which home-screen widgets are shown (time, weather, system). All on by default. */
+    fun widgetOn(context: Context, id: String) = prefs(context).getBoolean("w_$id", true)
+    fun setWidget(context: Context, id: String, on: Boolean) = prefs(context).edit().putBoolean("w_$id", on).apply()
+    fun widgets(context: Context): Set<String> = listOf("time", "weather", "system").filter { widgetOn(context, it) }.toSet()
+
+    /** How opaque the widget cards are, in percent (100 = solid, 10 = nearly see-through). */
+    fun panelAlpha(context: Context): Int = prefs(context).getInt("panel_alpha", 46)
+    fun savePanelAlpha(context: Context, value: Int) = prefs(context).edit().putInt("panel_alpha", value).apply()
+
+    /** How much a photo wallpaper is darkened, in percent. */
+    fun dim(context: Context): Int = prefs(context).getInt("dim", 40)
+    fun saveDim(context: Context, value: Int) = prefs(context).edit().putInt("dim", value).apply()
+
     private fun prefs(context: Context) = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
 
     /** Every launchable app: TV apps (LEANBACK_LAUNCHER), phone-style apps (LAUNCHER), plus Settings. */
@@ -117,7 +127,7 @@ object Apps {
         }
         add(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER))
         add(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER))
-        add(Intent(Settings.ACTION_SETTINGS), label = "Settings")
+        add(Intent(Settings.ACTION_SETTINGS), label = "Cài đặt")
         return apps.values.sortedBy { it.label.lowercase() }
     }
 }
