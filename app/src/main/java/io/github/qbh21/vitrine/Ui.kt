@@ -98,7 +98,7 @@ private val GlowColors = mapOf(
     "com.netflix.ninja" to Color(0x80E50914),
 )
 private val SpareGlows = listOf(Color(0x664F8CFF), Color(0x668B5CF6), Color(0x5C19B8FF), Color(0x5CFF5AAA), Color(0x5C28C88C))
-private fun glowFor(pkg: String) = GlowColors[pkg] ?: SpareGlows[Math.floorMod(pkg.hashCode(), SpareGlows.size)]
+internal fun glowFor(pkg: String) = GlowColors[pkg] ?: SpareGlows[Math.floorMod(pkg.hashCode(), SpareGlows.size)]
 
 // Selawik: Microsoft's open-source stand-in for Segoe UI.
 private val Selawik = FontFamily(

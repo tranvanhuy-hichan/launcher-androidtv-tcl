@@ -1,106 +1,168 @@
 <div align="center">
 
-# Vitrine
+# Launcher TCL (Vitrine)
 
-**A lightweight Android TV home launcher: fast, ad-free, no tracking.**
-Plus a one-command kit to **add AirPlay to your TV** and a toolkit to **debloat and enhance your TV's performance**, all without root.
+**Launcher màn hình chính Android TV kiểu macOS: nhẹ, không quảng cáo, không theo dõi, điều khiển được bằng remote lẫn điện thoại.**
+Kèm bộ công cụ **thêm AirPlay cho TV** và bộ script **gỡ bloatware, tăng hiệu năng TV**, tất cả đều không cần root.
 
-![Vitrine home screen](docs/screenshots/home.png)
-<sub>Vitrine's home screen design (1080p render). Live tiles in frosted glass over a soft bloom wallpaper.</sub>
+![Màn hình chính](docs/screenshots/home.png)
 
 </div>
 
 ---
 
-Budget Android TVs and Google TVs ship with launchers full of ads, sponsored rows and background services that
-eat the little RAM they have. **Vitrine** replaces the home screen with one calm screen of live tiles. It's a
-**1.9 MB** app that uses about **27 MB of RAM**, has **no internet permission**, and is driven entirely by the remote.
+Các dòng Android TV và Google TV giá rẻ thường đi kèm launcher đầy quảng cáo và dịch vụ chạy ngầm ngốn RAM.
+Launcher TCL thay màn hình chính bằng một giao diện gọn gàng kiểu Google TV: thanh trên cùng có lời chào và giờ lớn, lưới ô kính mờ gồm ứng dụng đã ghim
+và các widget, trên nền hình nền đổi màu. Toàn bộ dùng được bằng remote, và có thể
+chỉnh từ điện thoại bằng cách quét mã QR.
 
-On the two TVs it was built on, the full treatment (Vitrine + debloat + tweaks) took free RAM from **462 → 697 MB**
-on a 1.3 GB TV and from **599 → 974 MB** on a 1.7 GB Google TV.
+Nó chỉ dùng mạng cho **một việc**: lấy thời tiết từ Open-Meteo (không cần tài khoản hay khóa API, tối đa 30 phút một lần).
+Không phân tích, không quảng cáo, không theo dõi.
 
-## Features
+## Giao diện
 
-- **Live tiles:** big clock and greeting, calendar, storage meter, a notes tile you type into with the remote,
-  a Photos tile (cycles the showroom photos many MediaTek/MStar TVs ship with), cast status, recently used apps.
-- **Your apps first:** pin up to six apps as tiles, everything else one press away under *All apps*, plus
-  **search as you type**.
-- **Remote-first:** clean focus ring, hold OK (or Menu) for options: pin, unpin, app info, uninstall.
-- **Wallpapers:** Bloom, Cyan, Red and Grey, painted on the TV once, so there's no blur cost.
-- **Light by design:** Kotlin + Jetpack Compose, two libraries, no network access, no analytics, no ads.
-- **Works on locked TVs:** an optional Home-button redirect makes Vitrine the home screen even where the stock
-  launcher can't be replaced, or disable the stock launcher for the leanest setup.
-- **Android 11+ TVs** (Android TV and Google TV), 32- or 64-bit.
+- **Thanh trên cùng:** lời chào theo giờ, giờ lớn và ngày; bên phải là ô *Tìm ứng dụng*, nút Wi‑Fi, nút **Điều khiển**
+  và tên TV. Bấm Wi‑Fi hoặc Điều khiển để mở Trung tâm điều khiển.
+- **Đã ghim:** ứng dụng ghim đầu tiên là ô lớn có vầng sáng đúng màu icon, bốn ô nhỏ bên cạnh, và ô *Thêm ứng dụng*
+  ở chỗ còn trống. Nút *Tất cả ứng dụng ›* ở góc phải mở toàn bộ ứng dụng có **tìm kiếm khi gõ**.
+  Giữ OK trên ứng dụng để ghim, bỏ ghim, xem thông tin hoặc gỡ cài đặt.
+- **Ô thông tin (kính mờ, bật/tắt từng cái):**
+  - **Ngày:** ngày dương, thứ, và **âm lịch**.
+  - **Thời tiết:** nhiệt độ, tình trạng và dự báo theo giờ. Bấm để xem chi tiết.
+  - **Wi‑Fi:** tốc độ, tên mạng, vòng RAM và bộ nhớ.
+  - **Bộ nhớ:** dung lượng trống và thanh đã dùng.
+  - **Sắp tới:** ngày lễ hoặc sự kiện riêng gần nhất trong 60 ngày.
+  - **Dùng gần đây:** các ứng dụng vừa mở, kèm thời gian.
+  - **Mã QR** để kết nối điện thoại bất cứ lúc nào.
+- **Hiệu ứng nhẹ:** ô đang chọn nổi lên, các ô hiện dần khi mở, số liệu chạy mượt, chuyển màn hình bằng fade.
+  Không có hiệu ứng chạy liên tục nên không tốn pin hay làm nóng máy.
+- **Lịch:** xem lịch dương và âm, ngày lễ Việt Nam (Tết, Rằm, Giỗ Tổ, Trung thu, Ông Công Ông Táo, Giao thừa...)
+  và các sự kiện riêng của bạn.
+- **Hình nền:** Sonoma, Hoàng hôn, Đại dương... vẽ sẵn một lần nên không tốn tài nguyên làm mờ. Có thể tải ảnh riêng
+  từ điện thoại, chỉnh độ tối và độ trong của widget.
+- **Âm thanh giao diện:** dùng chính tiếng điều hướng và tiếng bấm của TV (theo cài đặt "âm thanh hệ thống"), bật/tắt được.
 
-## Install
+### Trung tâm điều khiển
 
-1. On the TV: **Settings → Device Preferences → About**, press OK on *Build* seven times, then turn on
-   **Developer options → USB debugging / Network debugging**. Note the TV's IP address.
-2. On your computer (`brew install --cask android-platform-tools` on a Mac):
+Mở từ nút **Điều khiển** (hoặc nút Wi‑Fi) trên thanh trên cùng, hoặc bấm phím Menu trên remote:
+
+- Phím tắt vào cài đặt, ngõ vào TV (HDMI...), bật/tắt tiếng giao diện.
+- Wi‑Fi (tên mạng, Mbps, dBm), chọn **thành phố thời tiết**, thanh **âm lượng**.
+- **Dọn RAM** một lần bấm (cho biết đã giải phóng bao nhiêu MB), hiển thị RAM và bộ nhớ còn trống.
+- **Điện thoại:** hiện mã QR to kèm hướng dẫn.
+
+## Điều khiển bằng điện thoại
+
+TV và điện thoại dùng chung một Wi‑Fi, mở camera quét mã QR trên TV, trang web điều khiển mở ra, không cần cài ứng dụng:
+
+- Chọn thành phố, hình nền (kể cả tải ảnh lên), độ tối nền, độ trong widget.
+- Sắp xếp ứng dụng ghim, bật/tắt widget, bật/tắt âm thanh.
+- Chỉnh âm lượng, dọn RAM, mở ứng dụng trên TV.
+- **Gõ chữ vào TV, phím điều hướng từ xa và tìm kiếm YouTube** ngay trên điện thoại.
+- Thêm **sự kiện hằng năm**: sinh nhật (ngày dương) và ngày giỗ (ngày âm), hiện trên widget Thời gian và Lịch.
+
+An toàn: máy chủ chỉ trả lời thiết bị trong mạng nhà, mọi yêu cầu phải kèm khóa ngẫu nhiên nằm trong mã QR.
+Bấm **Đổi mã** trên điện thoại để thay khóa. Một dịch vụ nền nhỏ (thông báo im lặng) giữ kết nối khi bạn đang mở
+YouTube hay ứng dụng khác.
+
+## Cài đặt
+
+TV dùng trong tài liệu này có IP **192.168.1.30** (thay bằng IP TV của bạn).
+
+1. Trên TV: **Cài đặt → Tùy chọn thiết bị → Giới thiệu**, bấm OK vào *Bản dựng (Build)* bảy lần, rồi bật
+   **Tùy chọn nhà phát triển → Gỡ lỗi USB / Gỡ lỗi qua mạng**.
+2. Trên máy tính (cần `adb`, JDK 17+ và Android SDK):
    ```bash
-   adb connect 192.168.1.50          # your TV's IP; accept the prompt on the TV ("Always allow")
-   adb install vitrine.apk           # from the Releases page
+   adb connect 192.168.1.30            # chấp nhận hộp thoại trên TV ("Luôn cho phép")
+   ./gradlew assembleRelease           # build bản release
+   TV=192.168.1.30 ./tools/install.sh  # cài lên TV
    ```
-   Or build it yourself: `TV=192.168.1.50 ./build.sh` (needs JDK 17+ and the Android SDK).
-3. Open **Vitrine** from the TV's app list to try it first.
+   `install.sh` cài APK, cấp quyền vị trí (để đọc tên Wi‑Fi) và bật chuyển hướng nút Home. Cập nhật ứng dụng sẽ
+   tắt dịch vụ chuyển hướng, nên cứ chạy lại script này mỗi lần cài bản mới.
+3. Bấm nút **Home** trên remote: màn hình chính bây giờ là Launcher TCL.
 
-### Make it your home screen
-
-| Option | How | Trade-off |
-|---|---|---|
-| **Redirect** (keeps the stock launcher) | `adb shell settings put secure enabled_accessibility_services io.github.qbh21.vitrine/io.github.qbh21.vitrine.HomeRedirectService` and `adb shell settings put secure accessibility_enabled 1` | The stock launcher keeps running and flashes for a moment |
-| **Replace** (leanest) | Android TV: `adb shell pm disable-user --user 0 com.google.android.tvlauncher`. Google TV: disable `com.google.android.apps.tv.launcherx` **and** `com.google.android.tungsten.setupwraith` (otherwise the setup wizard takes over the Home button) | Saves 30–145 MB of RAM; undo with `pm enable` |
-
-## Add AirPlay to your TV
-
-Your TV can show up in **Screen Mirroring** on any iPhone, iPad or Mac, invisibly and from boot, like Chromecast.
-No app to open and no interface, just the video, and back to the home screen when you disconnect.
+### Trả lại launcher gốc
 
 ```bash
-TV=192.168.1.50 NAME="Living Room TV" ./airplay/install-airplay.sh
+TV=192.168.1.30 ./tools/undo-home.sh               # nút Home về launcher gốc (ứng dụng vẫn cài)
+TV=192.168.1.30 ./tools/restore-stock-launcher.sh  # bật lại launcher của TV và tắt chuyển hướng
+TV=192.168.1.30 ./tools/undo-tweaks.sh             # khôi phục tốc độ hoạt ảnh về 1.0x
 ```
 
-It builds the open-source [android-airplay-server](https://github.com/jqssun/android-airplay-server) (UxPlay)
-with a TV patch for your TV's chip. Details, settings and troubleshooting: [airplay/README.md](airplay/README.md).
+### Cách đặt làm màn hình chính
 
-## Debloat and enhance your TV's performance
+| Tùy chọn | Cách làm | Đánh đổi |
+|---|---|---|
+| **Chuyển hướng** (giữ launcher gốc) | `./tools/install.sh` (dùng dịch vụ trợ năng `HomeRedirectService`) | Launcher gốc vẫn chạy và nháy lên một chút |
+| **Thay thế** (nhẹ nhất) | Android TV: `adb shell pm disable-user --user 0 com.google.android.tvlauncher`. Google TV: tắt `com.google.android.apps.tv.launcherx` **và** `com.google.android.tungsten.setupwraith` | Tiết kiệm 30–145 MB RAM; hoàn tác bằng `pm enable` |
 
-Scripts that make removing bloatware safe and reversible (always `pm disable-user`, never uninstall, never touch
-the firmware):
+## Quyền ứng dụng
+
+| Quyền | Dùng để |
+|---|---|
+| `INTERNET` | Chỉ để lấy thời tiết (Open-Meteo) |
+| `ACCESS_WIFI_STATE`, `ACCESS_FINE_LOCATION` | Đọc tên và tốc độ Wi‑Fi (Android ẩn tên mạng nếu không có quyền vị trí) |
+| `KILL_BACKGROUND_PROCESSES` | Nút **Dọn RAM** |
+| `FOREGROUND_SERVICE` | Giữ máy chủ điện thoại chạy khi đang ở ứng dụng khác |
+| `REQUEST_DELETE_PACKAGES` | Tùy chọn *Gỡ cài đặt* khi giữ OK trên ứng dụng |
+
+## Thêm AirPlay cho TV
+
+TV hiện trong **Phản chiếu màn hình** trên iPhone, iPad, Mac, ẩn hoàn toàn và chạy từ lúc khởi động, giống Chromecast.
+
+```bash
+TV=192.168.1.30 NAME="TV Phòng khách" ./airplay/install-airplay.sh
+```
+
+Script build [android-airplay-server](https://github.com/jqssun/android-airplay-server) (UxPlay) kèm bản vá TV.
+Chi tiết: [airplay/README.md](airplay/README.md).
+
+## Gỡ bloatware và tăng hiệu năng TV
+
+Mọi thao tác an toàn và hoàn tác được (luôn dùng `pm disable-user`, không gỡ cài đặt, không động đến firmware):
 
 ```bash
 cd tools
-TV=192.168.1.50 ./measure.sh baseline                       # snapshot: RAM, storage, packages, processes
-TV=192.168.1.50 ./debloat.sh com.vendor.ads com.vendor.demo  # max 10 per batch, logged, refuses core/protected apps
-adb -s 192.168.1.50:5555 reboot && TV=192.168.1.50 ./health.sh  # after every batch: home, Wi-Fi, inputs, cast, crashes
-TV=192.168.1.50 ./tweaks.sh --apply                          # animations 0.5x, trim caches, close cached apps
-TV=192.168.1.50 ./measure.sh after                           # compare with baseline
-TV=192.168.1.50 ./debloat.sh --undo                          # everything back
+TV=192.168.1.30 ./measure.sh baseline                        # chụp trạng thái: RAM, bộ nhớ, gói, tiến trình
+TV=192.168.1.30 ./debloat.sh com.vendor.ads com.vendor.demo  # tối đa 10 gói mỗi lượt, có log, từ chối ứng dụng lõi
+adb -s 192.168.1.30:5555 reboot && TV=192.168.1.30 ./health.sh  # sau mỗi lượt: home, Wi‑Fi, ngõ vào, cast, crash
+TV=192.168.1.30 ./tweaks.sh --apply                          # hoạt ảnh 0.5x, dọn cache, đóng ứng dụng nền
+TV=192.168.1.30 ./measure.sh after                           # so sánh với baseline
+TV=192.168.1.30 ./debloat.sh --undo                          # khôi phục tất cả
 ```
 
-What to disable and what never to touch, how to fix a soundbar that loses HDMI ARC, the "single video decoder"
-trap that stops video in every app, and why you shouldn't unlock the bootloader:
+Nên tắt gì, không được động vào gì, sửa lỗi mất HDMI ARC, và vì sao không nên mở khóa bootloader:
 **[docs/PLAYBOOK.md](docs/PLAYBOOK.md)**.
 
-## FAQ
+## Cấu trúc mã nguồn
 
-**Is this a Google TV launcher replacement?** Yes. It replaces both the Android TV and the Google TV home screen.
+| Tệp | Vai trò |
+|---|---|
+| `Home.kt` | Màn hình chính: lưới ô, thanh trên cùng, Lịch, Thời tiết, Trung tâm điều khiển, màn hình QR |
+| `Ui.kt`, `Widgets.kt` | Hình nền, kính mờ, danh sách ứng dụng, tìm kiếm |
+| `Apps.kt` | Danh sách ứng dụng, ghim, cài đặt |
+| `Weather.kt` | Thời tiết Open-Meteo, danh sách thành phố, bộ nhớ đệm |
+| `Lunar.kt`, `Holidays.kt`, `Events.kt` | Âm lịch Việt Nam, ngày lễ, sự kiện riêng (sinh nhật, giỗ) |
+| `Stats.kt` | Số liệu RAM, bộ nhớ, Wi‑Fi, băng thông |
+| `PhoneServer.kt`, `assets/phone/` | Máy chủ web và trang điều khiển trên điện thoại |
+| `KeepAliveService.kt` | Giữ máy chủ điện thoại chạy nền |
+| `HomeRedirectService.kt` | Chuyển hướng nút Home |
+| `Sfx.kt` | Âm thanh giao diện của TV |
 
-**Does it need root?** No. Everything uses standard ADB commands and can be undone, and a factory reset
-always brings the TV back to day one.
+## Câu hỏi thường gặp
 
-**Will my apps still work?** Yes. Vitrine only replaces the home screen. YouTube, Netflix, Play Store, inputs and
-Chromecast are untouched unless you choose to disable them.
+**Có cần root không?** Không. Chỉ dùng lệnh ADB tiêu chuẩn, hoàn tác được, và khôi phục cài đặt gốc luôn đưa TV về ban đầu.
 
-**Which TVs?** Built and tested on budget 4K TVs with MediaTek/MStar chips (Android 11, 1.3–1.7 GB RAM). It
-should run on any Android TV or Google TV on Android 11 or newer; please open an issue with your model.
+**Các ứng dụng của tôi vẫn chạy chứ?** Có. Chỉ màn hình chính bị thay; YouTube, Netflix, Play Store, ngõ vào và
+Chromecast không bị ảnh hưởng.
 
-## License
+**Hỗ trợ TV nào?** Làm và thử trên TV 4K giá rẻ chip MediaTek/MStar (Android 11, RAM 1,3–1,7 GB). Nên chạy được trên
+mọi Android TV hoặc Google TV từ Android 11 trở lên.
 
-Vitrine is **MIT** licensed (see [LICENSE](LICENSE)). The Selawik fonts are © Microsoft, under the SIL Open Font
-License 1.1 (`app/src/main/assets/Selawik-LICENSE.txt`). The AirPlay kit in `airplay/` modifies a GPL-3.0
-project and is GPL-3.0 (see [airplay/LICENSE](airplay/LICENSE)).
+**Điện thoại không kết nối được?** Kiểm tra cùng Wi‑Fi, và mở lại mã QR (khóa có thể đã được đổi).
 
-<sub>Keywords: lightweight Android TV launcher, Android TV home screen, Google TV launcher alternative, ad-free TV
-launcher, no-tracking launcher, debloat Android TV, speed up Android TV, enhance TV performance, add AirPlay to
-Android TV, AirPlay receiver for Android TV, AirPlay on Google TV, low-RAM TV, MediaTek / MStar Android TV.</sub>
+## Giấy phép
+
+Mã nguồn dùng giấy phép **MIT** (xem [LICENSE](LICENSE)). Phông chữ Selawik © Microsoft, theo SIL Open Font
+License 1.1 (`app/src/main/assets/Selawik-LICENSE.txt`). Bộ AirPlay trong `airplay/` sửa đổi một dự án
+GPL-3.0 nên theo GPL-3.0 (xem [airplay/LICENSE](airplay/LICENSE)).

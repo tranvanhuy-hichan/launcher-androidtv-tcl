@@ -21,7 +21,13 @@ import android.text.format.DateFormat
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -46,6 +52,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -288,7 +295,11 @@ fun LauncherScreen(refresh: Int, reset: Int, asHome: Boolean, resumed: Boolean, 
         Crossfade(wallpaper, animationSpec = tween(500), label = "wallpaper") { w ->
             if (w != null) androidx.compose.foundation.Image(w, null, Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
         }
-        when (screen) {
+        AnimatedContent(
+            screen, label = "screen",
+            transitionSpec = { (fadeIn(tween(240)) + scaleIn(tween(240), initialScale = 0.96f)) togetherWith fadeOut(tween(120)) },
+        ) { target ->
+        when (target) {
             Screen.Start -> MacHome(
                 apps, dock, weather, widgets, if (showQr) phoneUrl else null, events, sys, refresh, reset,
                 onOpen = openApp, onMenu = { menuFor = it },
@@ -300,6 +311,7 @@ fun LauncherScreen(refresh: Int, reset: Int, asHome: Boolean, resumed: Boolean, 
             Screen.Calendar -> CalendarScreen(events)
             Screen.Weather -> WeatherScreen(weather)
             Screen.Phone -> PhoneScreen(phoneUrl)
+        }
         }
     }
 
@@ -347,32 +359,62 @@ private fun MacHome(
     val context = LocalContext.current
     val now = rememberNow(refresh)
     val mem = LocalMemory.current
-    val items = remember(apps, dock) {
-        buildList {
-            dock.mapNotNull { p -> apps.firstOrNull { it.pkg == p } }.forEach { add(DockItem.App(it)) }
-            add(DockItem.More)
-        }
-    }
+    val pinned = remember(apps, dock) { dock.mapNotNull { p -> apps.firstOrNull { it.pkg == p } } }
+    val recent = remember(refresh, apps) { Apps.recents(context).mapNotNull { (p, t) -> apps.firstOrNull { it.pkg == p }?.let { it to t } } }
 
     val moved = remember { mutableStateOf(false) }   // set once the user presses a key, so we stop claiming focus
     Box(Modifier.fillMaxSize().onPreviewKeyEvent { moved.value = true; false }) {
         Column(Modifier.fillMaxSize()) {
-            MenuBar(now, sys, onControl)
-            val shown = listOf("time", "weather", "system").filter { it in widgets }
-            if (shown.isNotEmpty()) {
-                Row(Modifier.padding(start = 38.dp, end = 38.dp, top = 22.dp).fillMaxWidth().height(122.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    for (w in shown) when (w) {
-                        "time" -> TimeWidget(now, events, Modifier.weight(1.15f).fillMaxHeight(), onCalendar)
-                        "weather" -> WeatherWidget(weather, Modifier.weight(1.35f).fillMaxHeight(), onWeather)
-                        else -> SystemWidget(sys, Modifier.weight(1f).fillMaxHeight(), onControl)
+            MenuBar(now, sys, onAll, onControl)
+            Row(Modifier.padding(start = 38.dp, end = 38.dp).fillMaxWidth().height(30.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Header("Đã ghim", Modifier.padding(start = 4.dp), color = Text)
+                BarPill("dock-all", onAll) { c -> BasicText("Tất cả ứng dụng  ›", style = text(11f, color = c)) }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.padding(start = 38.dp, end = 38.dp, bottom = 46.dp).fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                // Left: pinned apps (one large, four small), then date and storage.
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        val big = pinned.getOrNull(0)
+                        if (big != null) AppTile(big, true, Modifier.width(176.dp).fillMaxHeight().appear(0), "dock0", onOpen, onMenu)
+                        else Box(Modifier.width(176.dp))
+                        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            for (r in 0..1) Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                for (c in 0..1) {
+                                    val i = 1 + r * 2 + c
+                                    val app = pinned.getOrNull(i)
+                                    if (app != null) AppTile(app, false, Modifier.weight(1f).fillMaxHeight().appear(i), "dock$i", onOpen, onMenu)
+                                    else if (i == pinned.size.coerceAtLeast(1)) AddTile(Modifier.weight(1f).fillMaxHeight().appear(i), onAll)
+                                    else Box(Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.fillMaxWidth().height(88.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if ("time" in widgets) DateTile(now, Modifier.weight(1.6f).fillMaxHeight().appear(5), onCalendar)
+                        StorageTile(sys, Modifier.weight(1f).fillMaxHeight().appear(6), onControl)
+                    }
+                }
+                // Right: weather, system and the next occasion, then recent apps and the phone QR code.
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    if ("weather" in widgets) {
+                        WeatherWidget(weather, Modifier.fillMaxWidth().weight(1f).appear(2), onWeather)
+                        Spacer(Modifier.height(12.dp))
+                    }
+                    Row(Modifier.fillMaxWidth().height(92.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if ("system" in widgets) SystemWidget(sys, Modifier.weight(1.5f).fillMaxHeight().appear(4), onControl)
+                        EventTile(now, events, Modifier.weight(1f).fillMaxHeight().appear(5), onCalendar)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.fillMaxWidth().height(104.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        RecentStrip(recent, now, Modifier.weight(1f).fillMaxHeight().appear(6), onOpen, onMenu)
+                        if (qrUrl != null) QrCorner(qrUrl, Modifier.fillMaxHeight().appear(7))
                     }
                 }
             }
         }
-        if (qrUrl != null) QrCorner(qrUrl, Modifier.align(Alignment.BottomStart).padding(start = 18.dp, bottom = 18.dp))
-        Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 20.dp)) {
-            Dock(items, onOpen, onMenu, onAll)
-        }
+        KeyHints(Modifier.align(Alignment.BottomStart).padding(start = 38.dp, bottom = 14.dp))
     }
     // The Dock's first icon takes focus once it's laid out. Retried briefly: on this slow TV the first attempt can be early.
     // Every time we come back (from a screen or another app) focus returns to the element that was open; the Home button restarts at the Dock.
@@ -393,51 +435,86 @@ private fun MacHome(
 // ---- Menu bar --------------------------------------------------------------------------------------
 
 @Composable
-private fun MenuBar(now: Long, s: SysState, onControl: () -> Unit) {
-    Row(Modifier.fillMaxWidth().height(34.dp).background(Color(0x570A0C18)).padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-        Image(painterResource(R.drawable.pk_tv), null, Modifier.size(15.dp), colorFilter = ColorFilter.tint(Text))
-        BasicText("Màn hình chính", Modifier.padding(start = 8.dp), style = text(12.5f, FontWeight.SemiBold))
+private fun MenuBar(now: Long, s: SysState, onSearch: () -> Unit, onControl: () -> Unit) {
+    val hour = Calendar.getInstance().apply { timeInMillis = now }.get(Calendar.HOUR_OF_DAY)
+    val greeting = when (hour) { in 5..10 -> "Chào buổi sáng"; in 11..12 -> "Chào buổi trưa"; in 13..17 -> "Chào buổi chiều"; else -> "Chào buổi tối" }
+    Row(Modifier.fillMaxWidth().height(86.dp).padding(start = 38.dp, end = 38.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column {
+            BasicText(greeting, style = text(11f, color = Muted))
+            BasicText(format("HH:mm", now), style = text(40f, FontWeight.Light))
+            BasicText(format("EEEE, d MMMM", now), style = text(11f, color = Muted))
+        }
         Spacer(Modifier.weight(1f))
-        MenuItem("mb-wifi", onControl) { c ->
-            Image(painterResource(R.drawable.pk_wifi), null, Modifier.size(13.dp), colorFilter = ColorFilter.tint(c))
-            BasicText(if (s.linkMbps >= 0) "${s.ssid?.let { "$it · " } ?: ""}${s.linkMbps.toInt()} Mbps" else "Không có Wi‑Fi", style = text(12f, color = c))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BarPill("mb-search", onSearch, 200.dp) { c ->
+                Image(painterResource(R.drawable.pk_search), null, Modifier.size(13.dp), colorFilter = ColorFilter.tint(c))
+                BasicText("Tìm ứng dụng", style = text(11f, color = c))
+            }
+            BarPill("mb-wifi", onControl, 30.dp, true) { c ->
+                Image(painterResource(R.drawable.pk_wifi), null, Modifier.size(14.dp), colorFilter = ColorFilter.tint(c))
+            }
+            BarPill("mb-cc", onControl) { c ->
+                Image(painterResource(R.drawable.pk_gear), null, Modifier.size(13.dp), colorFilter = ColorFilter.tint(c))
+                BasicText("Điều khiển", style = text(11f, color = c))
+            }
+            Column(Modifier.padding(start = 6.dp), horizontalAlignment = Alignment.End) {
+                BasicText("Launcher TCL", style = text(11f, FontWeight.SemiBold))
+                BasicText("Android TV", style = text(9f, color = Muted))
+            }
+            Box(Modifier.size(28.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFF7A6BFF), Color(0xFF5A8CFF)))), contentAlignment = Alignment.Center) {
+                Image(painterResource(R.drawable.pk_tv), null, Modifier.size(14.dp), colorFilter = ColorFilter.tint(Color.White))
+            }
         }
-        MenuItem("mb-ram", onControl) { c -> BasicText("RAM ${s.ramUsedPct.toInt()}%", style = text(12f, color = c)) }
-        MenuItem("mb-rom", onControl) { c -> BasicText("Bộ nhớ ${s.storageUsedPct.toInt()}%", style = text(12f, color = c)) }
-        MenuItem("mb-cc", onControl) { c ->
-            Image(painterResource(R.drawable.pk_gear), null, Modifier.size(13.dp), colorFilter = ColorFilter.tint(c))
-            BasicText("Điều khiển", style = text(12f, color = c))
-        }
-        BasicText(format("EEE d MMM  HH:mm", now), Modifier.padding(start = 12.dp), style = text(12f))
     }
 }
 
+/** A pill-shaped, focusable chip in the top bar. */
 @Composable
-private fun MenuItem(id: String, onClick: () -> Unit, content: @Composable RowScope.(Color) -> Unit) {
+private fun BarPill(id: String, onClick: () -> Unit, minWidth: Dp = 0.dp, round: Boolean = false, content: @Composable RowScope.(Color) -> Unit) {
     Pressable(Modifier, onClick, focusId = id) { focused ->
         Row(
-            Modifier.clip(RoundedCornerShape(8.dp)).background(if (focused) Color(0xF2FFFFFF) else Color.Transparent).padding(horizontal = 8.dp, vertical = 3.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp),
+            Modifier.widthIn(min = minWidth).height(30.dp).clip(RoundedCornerShape(15.dp))
+                .background(if (focused) Color(0xF2FFFFFF) else Color(0x24FFFFFF))
+                .border(0.7.dp, if (focused) Color.Transparent else Color(0x33FFFFFF), RoundedCornerShape(15.dp))
+                .padding(horizontal = if (round) 0.dp else 12.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
         ) { content(if (focused) Dark else Text) }
     }
 }
 
 // ---- Widgets ---------------------------------------------------------------------------------------
 
+/** Fades a card in and slides it up a little, [index] x 40 ms after the screen appears. Plays once per appearance. */
+@Composable
+private fun Modifier.appear(index: Int): Modifier {
+    val a = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { delay(index * 40L); a.animateTo(1f, tween(320)) }
+    return this.graphicsLayer { alpha = a.value; translationY = (1f - a.value) * 22.dp.toPx() }
+}
+
+/** A number that eases to [target] (from 0 the first time it is shown) instead of jumping. */
+@Composable
+private fun animatedValue(target: Float, ms: Int = 700): Float {
+    val a = remember { Animatable(0f) }
+    LaunchedEffect(target) { a.animateTo(target, tween(ms)) }
+    return a.value
+}
+
 /** A focusable glass card. OK runs [onClick]. */
 @Composable
-private fun Widget(modifier: Modifier, onClick: () -> Unit, gradient: Pair<Color, Color>? = null, focusId: String? = null, content: @Composable BoxScope.() -> Unit) {
+private fun Widget(modifier: Modifier, onClick: () -> Unit, gradient: Pair<Color, Color>? = null, focusId: String? = null, onLong: (() -> Unit)? = null, content: @Composable BoxScope.() -> Unit) {
     val a = LocalPanelAlpha.current
-    val background = if (gradient == null) SolidColor(Color(0xFF1E2230).copy(alpha = a))
+    val background = if (gradient == null) Brush.verticalGradient(listOf(Color(0xFF7F95E8).copy(alpha = a * 0.5f), Color(0xFF1B2030).copy(alpha = a * 0.95f)))
     else Brush.linearGradient(listOf(gradient.first.copy(alpha = (a * 1.35f).coerceAtMost(1f)), gradient.second.copy(alpha = (a * 1.3f).coerceAtMost(1f))))
     var focused by remember { mutableStateOf(false) }
     val press = remember { Press() }
-    val shape = RoundedCornerShape(21.dp)
+    val shape = RoundedCornerShape(24.dp)
+    val lift by animateFloatAsState(if (focused) 1.045f else 1f, tween(120), label = "lift")
     Box(
-        modifier.remembered(focusId).clip(shape).background(background)
+        modifier.remembered(focusId).graphicsLayer { scaleX = lift; scaleY = lift }.clip(shape).background(background)
             .border(if (focused) 3.dp else 0.7.dp, if (focused) Color.White else PanelLine, shape)
             .onFocusChanged { if (it.isFocused && !focused) Sfx.move(); focused = it.isFocused }
-            .onKeyEvent { press.handle(it.nativeKeyEvent, {}, { Sfx.select(); onClick() }, null) }
+            .onKeyEvent { press.handle(it.nativeKeyEvent, {}, { Sfx.select(); onClick() }, onLong) }
             .focusable(),
         content = content,
     )
@@ -518,7 +595,7 @@ private fun WeatherWidget(w: WeatherData?, modifier: Modifier, onClick: () -> Un
         Row(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.width(100.dp).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
                 Header(w.city.uppercase(), color = Color(0xE6FFFFFF))
-                BasicText("${w.temp}°", style = text(42f, FontWeight.Light))
+                BasicText("${animatedValue(w.temp.toFloat(), 600).toInt()}°", style = text(42f, FontWeight.Light))
                 BasicText(Weather.label(w.code), style = text(12f, color = Color(0xE6FFFFFF)), maxLines = 1)
             }
             Box(Modifier.padding(horizontal = 10.dp).width(1.dp).fillMaxHeight().background(Color(0x33FFFFFF)))
@@ -546,7 +623,7 @@ private fun SystemWidget(s: SysState, modifier: Modifier, onClick: () -> Unit) {
                     Header("WI‑FI", Modifier.padding(start = 4.dp))
                 }
                 Row(verticalAlignment = Alignment.Bottom) {
-                    BasicText(if (s.linkMbps >= 0) "${s.linkMbps.toInt()}" else "–", style = text(34f, FontWeight.Light))
+                    BasicText(if (s.linkMbps >= 0) "${animatedValue(s.linkMbps).toInt()}" else "–", style = text(34f, FontWeight.Light))
                     BasicText("Mbps", Modifier.padding(start = 3.dp, bottom = 6.dp), style = text(12f, color = Muted))
                 }
                 BasicText(s.ssid ?: "${s.rssi.toInt()} dBm", style = text(12f, color = Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -560,7 +637,8 @@ private fun SystemWidget(s: SysState, modifier: Modifier, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Ring(pct: Float, color: Color, label: String) {
+private fun Ring(target: Float, color: Color, label: String) {
+    val pct = animatedValue(target, 900)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(50.dp), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
@@ -612,44 +690,147 @@ private fun WeatherIcon(kind: Int, iconSize: Dp) {
 
 // ---- Dock ------------------------------------------------------------------------------------------
 
+/** A pinned app as a glass tile: large (icon, name at the bottom, a glow in the icon's colour) or small. */
 @Composable
-private fun Dock(
-    items: List<DockItem>, onOpen: (AppEntry) -> Unit, onMenu: (AppEntry) -> Unit,
-    onAll: () -> Unit,
-) {
-    var focused by remember { mutableIntStateOf(-1) }
-    val label = when (val it = items.getOrNull(focused)) {
-        is DockItem.App -> it.app.label
-        DockItem.More -> "Tất cả ứng dụng"
-        else -> ""
-    }
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.height(26.dp), contentAlignment = Alignment.Center) {
-            if (label.isNotEmpty()) {
-                BasicText(label, Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xD11E2230)).padding(horizontal = 10.dp, vertical = 3.dp), style = text(12f))
+private fun AppTile(app: AppEntry, big: Boolean, modifier: Modifier, id: String, onOpen: (AppEntry) -> Unit, onMenu: (AppEntry) -> Unit) {
+    val glow = glowFor(app.pkg)
+    Widget(modifier, { onOpen(app) }, if (big) glow.copy(alpha = 0.55f) to Color(0xFF141828) else null, id, { onMenu(app) }) {
+        if (big) {
+            Image(rememberAppDockBitmap(app), app.label, Modifier.align(Alignment.Center).padding(bottom = 16.dp).size(116.dp))
+            BasicText(app.label, Modifier.align(Alignment.BottomStart).padding(start = 14.dp, bottom = 12.dp), style = text(12f, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        } else {
+            Column(Modifier.fillMaxSize().padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Image(rememberAppDockBitmap(app), app.label, Modifier.size(62.dp))
+                BasicText(app.label, Modifier.padding(top = 8.dp), style = text(11f, color = Text), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        Row(
-            Modifier.clip(RoundedCornerShape(26.dp)).background(Color(0x33FFFFFF)).border(0.7.dp, Color(0x47FFFFFF), RoundedCornerShape(26.dp))
-                .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 15.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Bottom,
-        ) {
-            items.forEachIndexed { i, item ->
-                // Magnify with a GPU scale (no re-layout), anchored at the bottom. The gap leaves room for it.
-                val dist = if (focused < 0) 9 else abs(i - focused)
-                val scale by animateFloatAsState(when (dist) { 0 -> 1.32f; 1 -> 1.13f; else -> 1f }, tween(110), label = "dock")
-                val onFocus: (Boolean) -> Unit = { f -> if (f) focused = i else if (focused == i) focused = -1 }
-                val mod = Modifier.size(DOCK_ICON).graphicsLayer { scaleX = scale; scaleY = scale; transformOrigin = TransformOrigin(0.5f, 1f) }
-                when (item) {
-                    is DockItem.App -> Pressable(mod, { onOpen(item.app) }, { onMenu(item.app) }, onFocus, "dock$i") { f -> DockIcon(rememberAppDockBitmap(item.app), item.app.label, f) }
-                    DockItem.More -> Pressable(mod, onAll, null, onFocus, "dock$i") { f -> DockIcon(rememberMoreBitmap(), "Tất cả ứng dụng", f) }
+    }
+}
+
+/** The first free pinned slot: opens the full app list, where holding OK on an app pins it. */
+@Composable
+private fun AddTile(modifier: Modifier, onClick: () -> Unit) {
+    Widget(modifier, onClick, focusId = "dock-add") {
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Image(rememberMoreBitmap(), null, Modifier.size(62.dp))
+            BasicText("Thêm ứng dụng", Modifier.padding(top = 7.dp), style = text(10.5f, color = Muted), maxLines = 1)
+        }
+    }
+}
+
+/** Day of the month, weekday and lunar date. OK opens the month view. */
+@Composable
+private fun DateTile(now: Long, modifier: Modifier, onClick: () -> Unit) {
+    val dayKey = format("yyyyMMdd", now)
+    val today = remember(dayKey) { Calendar.getInstance().apply { timeInMillis = now } }
+    val lunar = remember(dayKey) { Lunar.convert(today.get(Calendar.DAY_OF_MONTH), today.get(Calendar.MONTH) + 1, today.get(Calendar.YEAR)) }
+    Widget(modifier, onClick, focusId = "w-time") {
+        Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            BasicText("${today.get(Calendar.DAY_OF_MONTH)}", style = text(44f, FontWeight.Light))
+            Column(Modifier.padding(start = 14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Header(format("EEEE", now).uppercase(), color = Color(0xFFFF6259))
+                BasicText("Tháng ${today.get(Calendar.MONTH) + 1}, ${today.get(Calendar.YEAR)}", style = text(11f, color = Muted), maxLines = 1)
+                BasicText("Âm lịch ${lunar.day}/${lunar.month}${if (lunar.leap) " (nhuận)" else ""} · ${Lunar.yearName(lunar.year)}", style = text(11.5f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+/** Free storage with a thin bar. OK opens the control centre. */
+@Composable
+private fun StorageTile(s: SysState, modifier: Modifier, onClick: () -> Unit) {
+    Widget(modifier, onClick, focusId = "w-rom") {
+        Column(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Header("BỘ NHỚ")
+            Column {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    BasicText("%.1f".format(animatedValue(s.storageFreeGb)), style = text(28f, FontWeight.Light))
+                    BasicText("GB trống", Modifier.padding(start = 4.dp, bottom = 5.dp), style = text(11f, color = Muted), maxLines = 1)
+                }
+                Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x24FFFFFF))) {
+                    Box(Modifier.fillMaxWidth(animatedValue(s.storageUsedPct, 900).coerceIn(0f, 100f) / 100f).fillMaxHeight().background(Color(0xFF30D158)))
                 }
             }
         }
     }
 }
 
-private val DOCK_ICON = 54.dp
+/** The next occasion: today's, a holiday or one of the user's own events. OK opens the month view. */
+@Composable
+private fun EventTile(now: Long, events: List<Event>, modifier: Modifier, onClick: () -> Unit) {
+    val dayKey = format("yyyyMMdd", now)
+    val next = remember(dayKey, events) { Holidays.upcoming(now, events) }
+    Widget(modifier, onClick, focusId = "w-event") {
+        Column(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Header("SẮP TỚI")
+            if (next == null) BasicText("Không có sự kiện", style = text(11.5f, color = Muted))
+            else {
+                val (ahead, name, mine) = next
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    BasicText(name, style = text(12.5f, FontWeight.SemiBold, if (mine) Color(0xFF6FD6FF) else Color(0xFFFFB340)), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    BasicText(if (ahead == 0) "Hôm nay" else if (ahead == 1) "Ngày mai" else "Còn $ahead ngày", style = text(11f, color = Muted), maxLines = 1)
+                }
+            }
+        }
+    }
+}
+
+/** "Dùng gần đây": the last apps opened from the launcher. */
+@Composable
+private fun RecentStrip(recent: List<Pair<AppEntry, Long>>, now: Long, modifier: Modifier, onOpen: (AppEntry) -> Unit, onMenu: (AppEntry) -> Unit) {
+    val a = LocalPanelAlpha.current
+    val shape = RoundedCornerShape(24.dp)
+    Column(
+        modifier.clip(shape).background(Brush.verticalGradient(listOf(Color(0xFF7F95E8).copy(alpha = a * 0.5f), Color(0xFF1B2030).copy(alpha = a * 0.95f))))
+            .border(0.7.dp, PanelLine, shape).padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Header("DÙNG GẦN ĐÂY")
+        if (recent.isEmpty()) BasicText("Chưa có ứng dụng nào", style = text(11f, color = Muted))
+        Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            recent.take(3).forEachIndexed { i, (app, at) ->
+                Pressable(Modifier.weight(1f).fillMaxHeight(), { onOpen(app) }, { onMenu(app) }, focusId = "recent$i") { f ->
+                    Row(
+                        Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)).background(if (f) Color(0x40FFFFFF) else Color(0x1AFFFFFF))
+                            .border(if (f) 2.dp else 0.dp, if (f) Color.White else Color.Transparent, RoundedCornerShape(14.dp)).padding(horizontal = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Image(rememberAppDockBitmap(app), app.label, Modifier.size(28.dp))
+                        Column {
+                            BasicText(app.label, style = text(10f, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            BasicText(ago(now, at), style = text(9f, color = Muted), maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun ago(now: Long, at: Long): String {
+    val m = ((now - at) / 60_000).coerceAtLeast(0)
+    return when {
+        m < 1 -> "Vừa xong"
+        m < 60 -> "$m phút trước"
+        m < 24 * 60 -> "${m / 60} giờ trước"
+        else -> "${m / (24 * 60)} ngày trước"
+    }
+}
+
+/** Key hints along the bottom edge. */
+@Composable
+private fun KeyHints(modifier: Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        for ((key, what) in listOf("OK" to "Chọn", "Giữ OK" to "Tùy chọn", "Menu" to "Điều khiển")) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                BasicText(key, Modifier.clip(RoundedCornerShape(4.dp)).background(Color(0x40FFFFFF)).padding(horizontal = 6.dp, vertical = 1.dp), style = text(9f, FontWeight.SemiBold))
+                BasicText(what, style = text(9.5f, color = Muted))
+            }
+        }
+    }
+}
+
+private val DOCK_ICON = 92.dp
 
 /** The focus ring: a vivid cyan that none of the icons use (many are white, red or multicolour). */
 private val DockRing = Color(0xFF2CE6FF)
@@ -659,7 +840,7 @@ private val DockRing = Color(0xFF2CE6FF)
 private fun DockIcon(bitmap: ImageBitmap, description: String, focused: Boolean) {
     Box(Modifier.fillMaxSize()) {
         Image(bitmap, description, Modifier.fillMaxSize())
-        if (focused) Box(Modifier.fillMaxSize().border(1.5.dp, DockRing, RoundedCornerShape(DOCK_ICON * 0.23f)))
+        if (focused) Box(Modifier.fillMaxSize().border(3.dp, Color.White, RoundedCornerShape(DOCK_ICON * 0.23f)))
     }
 }
 
