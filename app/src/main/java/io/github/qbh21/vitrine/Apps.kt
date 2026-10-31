@@ -24,6 +24,16 @@ class AppEntry(val label: String, val pkg: String, val launch: Intent, private v
     /** System apps can't be uninstalled from the launcher (only disabled from App info). */
     val isSystem: Boolean get() = (info.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
 
+    /** The wide banner an Android TV app ships for the home screen (usually 16:9), drawn at [w] x [h], or null if it has none. */
+    fun banner(context: Context, w: Int, h: Int): ImageBitmap? {
+        val pm = context.packageManager
+        val drawable = info.loadBanner(pm) ?: info.applicationInfo.loadBanner(pm) ?: return null
+        val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        drawable.setBounds(0, 0, w, h)
+        drawable.draw(Canvas(bitmap))
+        return bitmap.asImageBitmap()
+    }
+
     /** The app's own icon (the same one it has on phones), rendered as a [px]-sized square. */
     fun icon(context: Context, px: Int): AppIcon {
         val drawable = info.loadIcon(context.packageManager)

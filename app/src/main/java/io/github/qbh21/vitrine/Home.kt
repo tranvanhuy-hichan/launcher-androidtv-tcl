@@ -13,6 +13,7 @@ import android.graphics.Shader
 import android.media.tv.TvContract
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.media.tv.TvInputManager
 import android.media.AudioManager
 import android.net.Uri
@@ -22,6 +23,7 @@ import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
@@ -124,7 +126,6 @@ import java.util.Locale
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
-import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -187,11 +188,6 @@ private val Dark = Color(0xFF10131A)
 
 internal enum class Screen { Start, Apps, Search, Calendar, Weather, Phone }
 
-private sealed interface DockItem {
-    class App(val app: AppEntry) : DockItem
-    object More : DockItem
-}
-
 // ---- Helpers ---------------------------------------------------------------------------------------
 
 internal fun open(context: Context, intent: Intent): Boolean = try {
@@ -228,6 +224,9 @@ fun LauncherScreen(refresh: Int, reset: Int, asHome: Boolean, resumed: Boolean, 
     var menuFor by remember { mutableStateOf<AppEntry?>(null) }
     var control by remember { mutableStateOf(false) }
     var inputs by remember { mutableStateOf(false) }
+    var powerAsk by remember { mutableStateOf(false) }
+    var idle by remember { mutableStateOf(false) }
+    var lastInput by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
     var wallpaper by remember { mutableStateOf<ImageBitmap?>(null) }
     var cityTick by remember { mutableIntStateOf(0) }
     var wallTick by remember { mutableIntStateOf(0) }
@@ -261,11 +260,20 @@ fun LauncherScreen(refresh: Int, reset: Int, asHome: Boolean, resumed: Boolean, 
                 "events" -> events = Events.load(context)
                 "widgets" -> { widgets = Apps.widgets(context); showQr = Apps.widgetOn(context, "qr"); panelAlpha = Apps.panelAlpha(context) }
                 "key" -> phoneUrl = phoneServer.url()
-                "home" -> screen = Screen.Start
+                "home" -> { screen = Screen.Start; idle = false; lastInput = SystemClock.elapsedRealtime() }
             }
         }
     }
     val sys = rememberSysState(resumed)
+    // Idle mode: after a few minutes without a key on the home screen, show a dim clock until any key is pressed.
+    LaunchedEffect(resumed) { lastInput = SystemClock.elapsedRealtime(); idle = false }
+    LaunchedEffect(resumed, screen, control, inputs, powerAsk, menuFor) {
+        while (resumed) {
+            delay(5_000)
+            val busy = screen != Screen.Start || control || inputs || powerAsk || menuFor != null
+            if (!busy && SystemClock.elapsedRealtime() - lastInput > IDLE_MS) idle = true
+        }
+    }
     remember { Sfx.init(context) }
     val memory = remember { FocusMemory() }
 
@@ -283,6 +291,11 @@ fun LauncherScreen(refresh: Int, reset: Int, asHome: Boolean, resumed: Boolean, 
     androidx.compose.runtime.SideEffect { Remote.front = resumed }
     Box(
         Modifier.fillMaxSize().background(Color(0xFF1B1F4D)).onPreviewKeyEvent {
+            lastInput = SystemClock.elapsedRealtime()
+            if (idle) {
+                if (it.type == KeyEventType.KeyDown) idle = false   // the key that wakes the screen does nothing else
+                return@onPreviewKeyEvent true
+            }
             if (it.type == KeyEventType.KeyDown) Sfx.key(it.nativeKeyEvent.keyCode)
             false
         }.onKeyEvent {
@@ -305,6 +318,7 @@ fun LauncherScreen(refresh: Int, reset: Int, asHome: Boolean, resumed: Boolean, 
                 onOpen = openApp, onMenu = { menuFor = it },
                 onAll = { screen = Screen.Apps }, onCalendar = { screen = Screen.Calendar },
                 onWeather = { screen = Screen.Weather }, onControl = { control = true },
+                onPower = { powerAsk = true }, onInputs = { inputs = true },
             )
             Screen.Apps -> AppsScreen(apps, onOpen = openApp, onMenu = { menuFor = it })
             Screen.Search -> SearchScreen(apps, onOpen = openApp, onMenu = { menuFor = it })
@@ -313,6 +327,7 @@ fun LauncherScreen(refresh: Int, reset: Int, asHome: Boolean, resumed: Boolean, 
             Screen.Phone -> PhoneScreen(phoneUrl)
         }
         }
+        AnimatedVisibility(idle, enter = fadeIn(tween(900)), exit = fadeOut(tween(250))) { IdleScreen(weather) }
     }
 
     menuFor?.let { app ->
@@ -337,8 +352,15 @@ fun LauncherScreen(refresh: Int, reset: Int, asHome: Boolean, resumed: Boolean, 
         )
     }
 
+    if (powerAsk) {
+        OptionsMenu("Tắt màn hình TV?", listOf(
+            "Tắt màn hình" to { if (!TvControl.power()) Toast.makeText(context, "Cần bật dịch vụ trợ năng của launcher (tools/install.sh)", Toast.LENGTH_LONG).show() },
+            "Hủy" to {},
+        ), onDismiss = { powerAsk = false })
+    }
+
     if (inputs) {
-        val list = remember { tvInputs(context) }
+        val list = remember { TvControl.inputs(context) }
         val options = buildList<Pair<String, () -> Unit>> {
             list.forEach { (label, intent) -> add(label to { open(context, intent) }) }
             add("Truyền hình" to { open(context, Intent().setClassName("com.tcl.tv", "com.tcl.tv.TVActivity")) })
@@ -355,6 +377,7 @@ private fun MacHome(
     apps: List<AppEntry>, dock: List<String>, weather: WeatherData?, widgets: Set<String>, qrUrl: String?, events: List<Event>, sys: SysState, refresh: Int, reset: Int,
     onOpen: (AppEntry) -> Unit, onMenu: (AppEntry) -> Unit,
     onAll: () -> Unit, onCalendar: () -> Unit, onWeather: () -> Unit, onControl: () -> Unit,
+    onPower: () -> Unit, onInputs: () -> Unit,
 ) {
     val context = LocalContext.current
     val now = rememberNow(refresh)
@@ -374,19 +397,14 @@ private fun MacHome(
             Row(Modifier.padding(start = 38.dp, end = 38.dp, bottom = 46.dp).fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                 // Left: pinned apps (one large, four small), then date and storage.
                 Column(Modifier.weight(1f).fillMaxHeight()) {
-                    Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        val big = pinned.getOrNull(0)
-                        if (big != null) AppTile(big, true, Modifier.width(176.dp).fillMaxHeight().appear(0), "dock0", onOpen, onMenu)
-                        else Box(Modifier.width(176.dp))
-                        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            for (r in 0..1) Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                for (c in 0..1) {
-                                    val i = 1 + r * 2 + c
-                                    val app = pinned.getOrNull(i)
-                                    if (app != null) AppTile(app, false, Modifier.weight(1f).fillMaxHeight().appear(i), "dock$i", onOpen, onMenu)
-                                    else if (i == pinned.size.coerceAtLeast(1)) AddTile(Modifier.weight(1f).fillMaxHeight().appear(i), onAll)
-                                    else Box(Modifier.weight(1f))
-                                }
+                    Column(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        for (r in 0..1) Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            for (c in 0..1) {
+                                val i = r * 2 + c
+                                val app = pinned.getOrNull(i)
+                                if (app != null) AppTile(app, Modifier.weight(1f).fillMaxHeight().appear(i), "dock$i", onOpen, onMenu)
+                                else if (i == pinned.size) AddTile(Modifier.weight(1f).fillMaxHeight().appear(i), onAll)
+                                else Box(Modifier.weight(1f))
                             }
                         }
                     }
@@ -415,6 +433,7 @@ private fun MacHome(
             }
         }
         KeyHints(Modifier.align(Alignment.BottomStart).padding(start = 38.dp, bottom = 14.dp))
+        TvButtons(onPower, onInputs, Modifier.align(Alignment.BottomEnd).padding(end = 38.dp, bottom = 9.dp))
     }
     // The Dock's first icon takes focus once it's laid out. Retried briefly: on this slow TV the first attempt can be early.
     // Every time we come back (from a screen or another app) focus returns to the element that was open; the Home button restarts at the Dock.
@@ -441,8 +460,13 @@ private fun MenuBar(now: Long, s: SysState, onSearch: () -> Unit, onControl: () 
     Row(Modifier.fillMaxWidth().height(86.dp).padding(start = 38.dp, end = 38.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Column {
             BasicText(greeting, style = text(11f, color = Muted))
-            BasicText(format("HH:mm", now), style = text(40f, FontWeight.Light))
-            BasicText(format("EEEE, d MMMM", now), style = text(11f, color = Muted))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BasicText(format("HH:mm", now), style = text(40f, FontWeight.Light))
+                Column(Modifier.padding(start = 14.dp), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    BasicText(format("EEEE", now), style = text(15f, FontWeight.SemiBold))
+                    BasicText(format("d MMMM", now), style = text(15f, color = Muted))
+                }
+            }
         }
         Spacer(Modifier.weight(1f))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -690,18 +714,19 @@ private fun WeatherIcon(kind: Int, iconSize: Dp) {
 
 // ---- Dock ------------------------------------------------------------------------------------------
 
-/** A pinned app as a glass tile: large (icon, name at the bottom, a glow in the icon's colour) or small. */
+/** A pinned app as a wide tile: the app's own TV banner when it has one, else its icon on a glow in the icon's colour. */
 @Composable
-private fun AppTile(app: AppEntry, big: Boolean, modifier: Modifier, id: String, onOpen: (AppEntry) -> Unit, onMenu: (AppEntry) -> Unit) {
+private fun AppTile(app: AppEntry, modifier: Modifier, id: String, onOpen: (AppEntry) -> Unit, onMenu: (AppEntry) -> Unit) {
+    val context = LocalContext.current
+    val banner = remember(app.pkg) { app.banner(context, 400, 225) }
     val glow = glowFor(app.pkg)
-    Widget(modifier, { onOpen(app) }, if (big) glow.copy(alpha = 0.55f) to Color(0xFF141828) else null, id, { onMenu(app) }) {
-        if (big) {
-            Image(rememberAppDockBitmap(app), app.label, Modifier.align(Alignment.Center).padding(bottom = 16.dp).size(116.dp))
-            BasicText(app.label, Modifier.align(Alignment.BottomStart).padding(start = 14.dp, bottom = 12.dp), style = text(12f, FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Widget(modifier, { onOpen(app) }, if (banner == null) glow.copy(alpha = 0.55f) to Color(0xFF141828) else null, id, { onMenu(app) }) {
+        if (banner != null) {
+            Image(banner, app.label, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         } else {
-            Column(Modifier.fillMaxSize().padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Image(rememberAppDockBitmap(app), app.label, Modifier.size(62.dp))
-                BasicText(app.label, Modifier.padding(top = 8.dp), style = text(11f, color = Text), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Image(rememberAppDockBitmap(app), app.label, Modifier.size(64.dp))
+                BasicText(app.label, style = text(13f, FontWeight.SemiBold), maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -712,8 +737,8 @@ private fun AppTile(app: AppEntry, big: Boolean, modifier: Modifier, id: String,
 private fun AddTile(modifier: Modifier, onClick: () -> Unit) {
     Widget(modifier, onClick, focusId = "dock-add") {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Image(rememberMoreBitmap(), null, Modifier.size(62.dp))
-            BasicText("Thêm ứng dụng", Modifier.padding(top = 7.dp), style = text(10.5f, color = Muted), maxLines = 1)
+            Image(rememberMoreBitmap(), null, Modifier.size(56.dp))
+            BasicText("Thêm ứng dụng", Modifier.padding(top = 7.dp), style = text(11f, color = Muted), maxLines = 1)
         }
     }
 }
@@ -817,6 +842,53 @@ private fun ago(now: Long, at: Long): String {
     }
 }
 
+/** Power, mute and input shortcuts at the right end of the bottom row. */
+@Composable
+private fun TvButtons(onPower: () -> Unit, onInputs: () -> Unit, modifier: Modifier) {
+    val context = LocalContext.current
+    var muted by remember { mutableStateOf(TvControl.isMuted(context)) }
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        for ((id, label, act) in listOf(
+            Triple("tv-mute", if (muted) "Bật tiếng" else "Tắt tiếng", { muted = TvControl.toggleMute(context) }),
+            Triple("tv-input", "Nguồn vào", onInputs),
+            Triple("tv-power", "Nguồn", onPower),
+        )) {
+            Pressable(Modifier, act, focusId = id) { f ->
+                BasicText(
+                    label,
+                    Modifier.clip(RoundedCornerShape(12.dp)).background(if (f) Color(0xF2FFFFFF) else Color(0x33FFFFFF))
+                        .border(0.7.dp, if (f) Color.Transparent else Color(0x33FFFFFF), RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 5.dp),
+                    style = text(10.5f, FontWeight.SemiBold, if (f) Dark else Text),
+                )
+            }
+        }
+    }
+}
+
+/** A dim, slowly drifting clock for when nobody has pressed a key for a while. The drift spares the screen from burn-in. */
+@Composable
+private fun IdleScreen(weather: WeatherData?) {
+    val now = rememberNow(0)
+    val cal = remember(now) { Calendar.getInstance().apply { timeInMillis = now } }
+    val lunar = remember(format("yyyyMMdd", now)) { Lunar.convert(cal.get(Calendar.DAY_OF_MONTH), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.YEAR)) }
+    val step = (now / 60_000).toInt()
+    val dx by animateDpAsState(28.dp * ((step % 5) - 2), tween(2000), label = "dx")
+    val dy by animateDpAsState(14.dp * (((step / 5) % 5) - 2), tween(2000), label = "dy")
+    val dim = Color(0xFFB9C0D0)
+    Box(Modifier.fillMaxSize().background(Color(0xFF04060C)), contentAlignment = Alignment.Center) {
+        Column(Modifier.offset(dx, dy), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            BasicText(format("HH:mm", now), style = text(120f, FontWeight.Light, Color(0xFFE3E7F2)))
+            BasicText(format("EEEE, d MMMM yyyy", now), style = text(20f, color = dim))
+            BasicText("Âm lịch ${lunar.day}/${lunar.month}${if (lunar.leap) " (nhuận)" else ""} · ${Lunar.yearName(lunar.year)}", style = text(16f, color = dim.copy(alpha = 0.8f)))
+            weather?.let {
+                BasicText("${it.temp}° · ${it.city} · ${Weather.label(it.code)}", Modifier.padding(top = 14.dp), style = text(18f, color = dim))
+            }
+        }
+    }
+}
+
+private const val IDLE_MS = 3 * 60_000L
+
 /** Key hints along the bottom edge. */
 @Composable
 private fun KeyHints(modifier: Modifier) {
@@ -900,24 +972,6 @@ private fun rememberMoreBitmap(): ImageBitmap {
             paint.color = 0xFFF4F6FB.toInt(); paint.strokeWidth = f * 0.06f; paint.strokeCap = Paint.Cap.ROUND
             c.drawLine(f * 0.3f, f * 0.5f, f * 0.7f, f * 0.5f, paint); c.drawLine(f * 0.5f, f * 0.3f, f * 0.5f, f * 0.7f, paint)
         }
-    }
-}
-
-/** An app icon at any size. The bitmap is made once at a fixed size and scaled, so the Dock can grow cheaply. */
-@Composable
-private fun DockAppIcon(app: AppEntry, size: Dp) {
-    val shape = RoundedCornerShape(size * 0.23f)
-    val glyph = Overrides.glyphs[app.pkg]
-    if (glyph != null) {
-        Box(Modifier.size(size).clip(shape).background(Brush.linearGradient(listOf(Color(0xFF6B7385), Color(0xFF3A4252)))), contentAlignment = Alignment.Center) {
-            Image(painterResource(glyph), app.label, Modifier.size(size * 0.56f), colorFilter = ColorFilter.tint(Text))
-        }
-        return
-    }
-    val context = LocalContext.current
-    val icon = remember(app.pkg) { app.icon(context, 112) }
-    Box(Modifier.size(size).clip(shape).background(icon.background ?: Color.White), contentAlignment = Alignment.Center) {
-        Image(icon.bitmap, app.label, if (icon.fullBleed) Modifier.fillMaxSize() else Modifier.size(size * 0.86f))
     }
 }
 
@@ -1109,13 +1163,6 @@ private val SHORTCUTS = listOf(
     Shortcut("Cập nhật", Glyph.Update, Intent("android.settings.SYSTEM_UPDATE_SETTINGS")),
     Shortcut("Giới thiệu", Glyph.Info, Intent(Settings.ACTION_DEVICE_INFO_SETTINGS)),
 )
-
-/** HDMI and other pass-through inputs this TV reports, as (label, intent that switches to it). */
-internal fun tvInputs(context: Context): List<Pair<String, Intent>> = runCatching {
-    context.getSystemService(TvInputManager::class.java).tvInputList.filter { it.isPassthroughInput }.map { info ->
-        info.loadLabel(context).toString() to Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(info.id))
-    }
-}.getOrDefault(emptyList())
 
 @Composable
 private fun ControlCenter(sys: SysState, city: String, onCity: () -> Unit, onInputs: () -> Unit, onPhone: () -> Unit, onDismiss: () -> Unit) {

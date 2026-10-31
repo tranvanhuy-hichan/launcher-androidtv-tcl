@@ -215,6 +215,8 @@ class PhoneServer(private val context: Context) {
                 }
                 text(out, 200, "ok")
             }
+            "/api/power" -> if (TvControl.power()) text(out, 200, "ok") else text(out, 409, "no-service")
+            "/api/input" -> if (TvControl.switchInput(context, q["i"]?.toIntOrNull() ?: -1)) text(out, 200, "ok") else text(out, 404, "none")
             "/api/ytsearch" -> {
                 val query = q["q"]?.trim()?.take(120)
                 if (query.isNullOrEmpty()) return text(out, 400, "empty")
@@ -264,6 +266,7 @@ class PhoneServer(private val context: Context) {
             .put("events", JSONArray().also { a -> Events.load(context).forEach { a.put(JSONObject().put("id", it.id).put("name", it.name).put("lunar", it.lunar).put("day", it.day).put("month", it.month)) } })
             .put("dock", JSONArray(Apps.pinned(context)))
             .put("apps", JSONArray().also { a -> apps.forEach { a.put(JSONObject().put("pkg", it.pkg).put("label", it.label).put("system", it.isSystem)) } })
+            .put("inputs", JSONArray().also { a -> TvControl.inputs(context).forEach { a.put(it.first) } })
             .put("volume", audio.getStreamVolume(AudioManager.STREAM_MUSIC))
             .put("volumeMax", audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1))
             .put("ram", JSONObject().put("freeMb", avail / 1e6).put("totalMb", total / 1e6))

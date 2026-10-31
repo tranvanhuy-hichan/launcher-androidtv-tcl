@@ -154,6 +154,8 @@ const I={ // 24px line icons
  back:'<path d="M19 12H5M12 19l-7-7 7-7"/>',menu:'<path d="M3 12h18M3 6h18M3 18h18"/>',
  vup:'<path d="M11 5L6 9H2v6h4l5 4zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>',
  vdn:'<path d="M11 5L6 9H2v6h4l5 4zM15.54 8.46a5 5 0 0 1 0 7.07"/>',
+ power:'<path d="M12 2v10M18.36 6.64a9 9 0 1 1-12.73 0"/>',
+ tvin:'<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
  mute:'<path d="M11 5L6 9H2v6h4l5 4zM23 9l-6 6M17 9l6 6"/>',
  moon:'<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
  gift:'<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v9H5v-9M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>',
@@ -219,6 +221,9 @@ function ctl(){
   <div class="actions">${act('back','Quay lại','back')}${act('home','Màn hình chính','home')}${act('menu','Menu','menu')}</div>
   <div class="stepper"><button data-key="voldown" aria-label="Giảm âm lượng">${sv('vdn')}</button><button data-key="mute" aria-label="Tắt tiếng">${sv('mute')}</button><button data-key="volup" aria-label="Tăng âm lượng">${sv('vup')}</button></div>
   <p class="foot" style="text-align:center">Mũi tên và OK điều khiển launcher. Quay lại, Màn hình chính và âm lượng dùng được ở mọi app.</p>
+  ${group([`<button class="row ic" data-act="power">${ico('power','red')}<div class="t"><b>Tắt màn hình TV</b><small>Đưa TV về chế độ chờ</small></div></button>`,
+     ...(S.inputs||[]).map((n,i)=>`<button class="row ic" data-act="input" data-i="${i}">${ico('tvin','teal')}<div class="t"><b>${esc(n)}</b><small>Chuyển nguồn vào</small></div>${sv('chev','chev')}</button>`)],
+     'Tắt TV cần dịch vụ trợ năng của launcher đang bật (tools/install.sh bật sẵn).','Nguồn TV')}
   ${group([`<div class="row ic">${ico('yt','red')}<input type="text" id="yq" placeholder="Tìm trên YouTube" autocomplete="off" enterkeyhint="search" aria-label="Tìm trên YouTube"><button class="link" data-act="ytsearch">Tìm</button></div>`],'TV mở ngay kết quả trong YouTube, kể cả khi đang xem app khác.','YouTube')}
   ${group([`<div class="row ic">${ico('kbd','blue')}<input type="text" id="kb" placeholder="Gõ để nhập vào TV" autocomplete="off" autocapitalize="off" autocorrect="off" enterkeyhint="send" aria-label="Bàn phím nhập vào TV"></div>`,
      `<div class="row"><div class="t"><b id="kbpill">Đang kiểm tra…</b></div><button class="link" data-act="kbclear">Xóa</button><button class="link" data-act="enter" style="margin-left:6px">Gửi</button></div>`],
@@ -379,6 +384,8 @@ document.addEventListener('click',async e=>{
       S=await get('/api/state');toast('Đã thêm sự kiện');look()}
     else if(d.act==='evdel'){await post('/api/eventdel?id='+enc(d.id));S=await get('/api/state');toast('Đã xóa sự kiện');look()}
     else if(d.act==='rotate'){await post('/api/rotate');toast('Đã đổi mã. Quét lại mã QR trên TV.');online(false)}
+    else if(d.act==='power'){await post('/api/power');toast('Đã gửi lệnh tắt TV')}
+    else if(d.act==='input'){await post('/api/input?i='+d.i);toast('Đã chuyển nguồn vào')}
     else if(d.act==='home'){await post('/api/key?c=home');toast('TV đã về màn hình chính')}
     else if(d.act==='ytsearch'){const q=$('#yq').value.trim();if(!q)return toast('Gõ từ khóa trước');await post('/api/ytsearch?q='+enc(q));toast('Đang mở YouTube…')}
     else if(d.act==='enter'){await post('/api/enter');toast('Đã gửi Enter')}

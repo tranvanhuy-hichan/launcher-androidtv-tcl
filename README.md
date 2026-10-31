@@ -23,9 +23,9 @@ Không phân tích, không quảng cáo, không theo dõi.
 
 - **Thanh trên cùng:** lời chào theo giờ, giờ lớn và ngày; bên phải là ô *Tìm ứng dụng*, nút Wi‑Fi, nút **Điều khiển**
   và tên TV. Bấm Wi‑Fi hoặc Điều khiển để mở Trung tâm điều khiển.
-- **Đã ghim:** ứng dụng ghim đầu tiên là ô lớn có vầng sáng đúng màu icon, bốn ô nhỏ bên cạnh, và ô *Thêm ứng dụng*
-  ở chỗ còn trống. Nút *Tất cả ứng dụng ›* ở góc phải mở toàn bộ ứng dụng có **tìm kiếm khi gõ**.
-  Giữ OK trên ứng dụng để ghim, bỏ ghim, xem thông tin hoặc gỡ cài đặt.
+- **Đã ghim:** bốn ô ngang 2×2 hiện **banner của chính ứng dụng** (YouTube, VTVgo, Play Store...); ứng dụng không có
+  banner dùng icon trên nền màu. Ô còn trống là *Thêm ứng dụng*. Nút *Tất cả ứng dụng ›* ở góc phải mở toàn bộ
+  ứng dụng có **tìm kiếm khi gõ**. Giữ OK trên ứng dụng để ghim, bỏ ghim, xem thông tin hoặc gỡ cài đặt.
 - **Ô thông tin (kính mờ, bật/tắt từng cái):**
   - **Ngày:** ngày dương, thứ, và **âm lịch**.
   - **Thời tiết:** nhiệt độ, tình trạng và dự báo theo giờ. Bấm để xem chi tiết.
@@ -34,6 +34,10 @@ Không phân tích, không quảng cáo, không theo dõi.
   - **Sắp tới:** ngày lễ hoặc sự kiện riêng gần nhất trong 60 ngày.
   - **Dùng gần đây:** các ứng dụng vừa mở, kèm thời gian.
   - **Mã QR** để kết nối điện thoại bất cứ lúc nào.
+- **Nút ở đáy màn hình:** cạnh hướng dẫn phím có ba nút sát phải: *Tắt tiếng*, *Nguồn vào* (HDMI...) và *Nguồn*
+  (tắt màn hình TV, có hỏi xác nhận).
+- **Chế độ nghỉ:** sau 3 phút không bấm phím, hiện giờ lớn, ngày, âm lịch và thời tiết trên nền tối, nhích vị trí mỗi phút
+  để tránh cháy màn hình. Bấm phím bất kỳ để thoát.
 - **Hiệu ứng nhẹ:** ô đang chọn nổi lên, các ô hiện dần khi mở, số liệu chạy mượt, chuyển màn hình bằng fade.
   Không có hiệu ứng chạy liên tục nên không tốn pin hay làm nóng máy.
 - **Lịch:** xem lịch dương và âm, ngày lễ Việt Nam (Tết, Rằm, Giỗ Tổ, Trung thu, Ông Công Ông Táo, Giao thừa...)
@@ -57,7 +61,7 @@ TV và điện thoại dùng chung một Wi‑Fi, mở camera quét mã QR trên
 
 - Chọn thành phố, hình nền (kể cả tải ảnh lên), độ tối nền, độ trong widget.
 - Sắp xếp ứng dụng ghim, bật/tắt widget, bật/tắt âm thanh.
-- Chỉnh âm lượng, dọn RAM, mở ứng dụng trên TV.
+- Chỉnh âm lượng, dọn RAM, mở ứng dụng trên TV, **tắt màn hình TV** và **chuyển nguồn vào** (HDMI...).
 - **Gõ chữ vào TV, phím điều hướng từ xa và tìm kiếm YouTube** ngay trên điện thoại.
 - Thêm **sự kiện hằng năm**: sinh nhật (ngày dương) và ngày giỗ (ngày âm), hiện trên widget Thời gian và Lịch.
 

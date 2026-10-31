@@ -83,6 +83,7 @@ class HomeRedirectService : AccessibilityService() {
 
     fun goBack() = performGlobalAction(GLOBAL_ACTION_BACK)
     fun goHome() = performGlobalAction(GLOBAL_ACTION_HOME)
+    fun lockScreen() = performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
 
     override fun onUnbind(intent: Intent?): Boolean {
         instance = null
